@@ -1,0 +1,5 @@
+tesh-tester: # do not modify this test
+        image: debian:bullseye
+        script:
+                - apt-get update && apt-get -y install wget
+                - wget -O - https://members.loria.fr/lnussbaum/RS/tesh-tester | bash
