@@ -6,17 +6,42 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
+#include "parser.h"
+
 void get_prompt(char* buff)
 {
     char hostname[128];
+    char cwd[1024];
     const char* username = getlogin();
     gethostname(hostname, 128);
-    sprintf(buff, "%s@%s: ", username, hostname);
+    getcwd(cwd, 1024);
+    sprintf(buff, "%s@%s:%s ", username, hostname, cwd);
 }
 
 void process_input(char* input)
 {
+    char** tokens;
+    AbstractOp* ops = NULL;
+    /*int count = */parse(input, " ", &tokens, &ops);
 
+    while (ops && ops->op != NONE) {
+        if (ops->op == CUSTOM) {
+            for (int i = ops->start; i <= ops->end; i++) {
+                printf(" %s ", tokens[i]);
+            }
+        }else{
+            printf(" %d ", ops->op);
+        }
+        
+        ops = ops->next;
+    }
+
+    printf("\n");
+    /*for (int i = 0; i < count; i++) {
+        if (tokens[i]) {
+            printf("%s\n", tokens[i]);
+        }
+    }*/
 }
 
 int main(int argc, const char** argv) 

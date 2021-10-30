@@ -1,5 +1,7 @@
 CC=gcc
 CFLAGS=-Wall
-LDFLAGS=-lreadline
+SRC=$(wildcard *.c)
+LIBS=-lreadline
 
-all: tesh
+tesh: $(SRC)
+	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
