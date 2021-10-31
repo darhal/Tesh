@@ -2,11 +2,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#include <fcntl.h>
 #include <sys/wait.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 
 #include "parser.h"
+#include "redirections.h"
+
 
 void get_prompt(char* buff)
 {
@@ -44,6 +47,7 @@ void process_input(char* input)
     }*/
 }
 
+
 int main(int argc, const char** argv) 
 {
     rl_bind_key('\t', rl_complete);
@@ -63,6 +67,12 @@ int main(int argc, const char** argv)
 
         // Process current input
         process_input(input);
+
+        // //execute > command
+        // char* parsed3[] = {"echo", "test_left_cd", NULL, (char*)CD_RIGHT , "test.txt", NULL};
+        // char* parsed3[] = {"sort", NULL, (char*)D_LEFT , "test.txt", NULL};
+        // redirect(parsed3, 5);
+
 
         // Free buffer that was allocated by readline
         free(input);
