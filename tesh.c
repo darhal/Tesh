@@ -9,6 +9,8 @@
 
 #include "parser.h"
 #include "redirections.h"
+#include "interactive.h"
+#include "command.h"
 
 
 void get_prompt(char* buff)
@@ -68,11 +70,13 @@ int main(int argc, const char** argv)
         // Process current input
         process_input(input);
 
-        // //execute > command
+        // // test execute > command
         // char* parsed3[] = {"echo", "test_left_cd", NULL, (char*)CD_RIGHT , "test.txt", NULL};
         // char* parsed3[] = {"sort", NULL, (char*)D_LEFT , "test.txt", NULL};
         // redirect(parsed3, 5);
 
+        // // test non_interactive
+        // non_interactive("test.txt") ;
 
         // Free buffer that was allocated by readline
         free(input);
