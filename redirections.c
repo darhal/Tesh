@@ -101,3 +101,36 @@ void redirect(char** parsed, int n){
     }
 
 }
+
+
+//pipe 
+    // pipe_parsed : list(command1, command2) and command1/2 = parsed
+void exec_pipe(char** parsed1, char** parsed2){
+
+    int fd[2];
+    pipe(fd);
+    if (fork() == 0) {          /* child */
+        close(fd[0]);
+        dup2(fd[1], STDOUT_FILENO);
+        close(fd[1]);
+        int code = execvp(parsed1[0], parsed1);
+        if (code != 0) {
+            perror("Could not execute command");
+        }
+    } 
+    else {                      /* parent */      
+        wait(NULL);
+        if (fork() == 0){
+            close(fd[1]);
+            dup2(fd[0], STDIN_FILENO);
+            close(fd[0]);
+            int code = execvp(parsed2[0], parsed2);
+            if (code != 0) {
+                perror("Could not execute command");
+            }
+        } 
+        else {
+            wait(NULL);
+        }
+    }
+}
