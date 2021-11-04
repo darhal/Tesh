@@ -1,17 +1,20 @@
 #include "common.h"
 
+
+
 const char* TOKENS[] = {
-    "invalid",
     "cd",
-    "ls",
-    NULL,
-    
+
     ";",
-    "|",
     "&&",
     "||",
+    "|",
+    "&",
+
     ">",
     ">>",
     "<",
     "<<",
 };
+
+const int TOKENS_SIZE = sizeof(TOKENS) / sizeof(TOKENS[0]);
