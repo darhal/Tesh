@@ -1,15 +1,15 @@
 #include "common.h"
 
-
-
 const char* TOKENS[] = {
-    "cd",
+    "&",
 
     ";",
     "&&",
     "||",
     "|",
-    "&",
+
+    "cd",
+    "fg",
 
     ">",
     ">>",

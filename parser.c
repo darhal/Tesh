@@ -25,18 +25,17 @@ int contains(const char* string, const char** tokens, int nb_tok)
         }
     }
 
-    return CUSTOM;
+    return TEXT;
 }
 
 void free_abstract_op(AbstractOp* ops, int count)
 {
     for (int i = 0; i < count; i++) {
-        if (ops[i].opsArr) {
-            free(ops[i].opsArr);
-        }
+        free_abstract_op(ops[i].opsArr, ops[i].opsCount);
     }
 
-    free(ops);
+    if (ops)
+        free(ops);
 }
 
 AbstractOp* get_next_op(AbstractOp** ops, int* ops_cap, int* nb_ops)
@@ -62,60 +61,74 @@ int parse(char* string, const char* sep, char*** tokens, AbstractOp** ops, int* 
     int nb_spcs = (count_chars(string, sep[0]) + 1) * 2;
     int ops_cap = 0;
     *tokens = calloc(nb_spcs, sizeof(char*));
-    AbstractOp* curr_op = NULL; // get_next_op(ops, &ops_cap, nb_ops);
-    AbstractOp* compound = NULL;
+    AbstractOp* hdeep[] = { NULL, NULL, NULL };
     token = strtok(string, sep);
     
     while (token) {
+        // printf("Token id : %d\n", i);
         (*tokens)[i] = token;
         int tok_code = contains(token, TOKENS, TOKENS_SIZE);
         token = strtok(NULL, sep);
+        int end_comp = token == NULL;
         // printf("cap  %d size %d ptr %p\n", ops_cap, *nb_ops, curr_op);
-        // printf("tok_code = %d\n", tok_code);
+        
+        if (tok_code & HCTRL_FLOW) {
+            hdeep[0] = get_next_op(ops, &ops_cap, nb_ops);
+            hdeep[0]->token = *tokens + i;
+            hdeep[0]->count = 1;
+            hdeep[0]->op = tok_code;
+            hdeep[0] = NULL;
+            end_comp |= 1;
+            //printf("Adding null 1\n");
+        }else if (!hdeep[0]) {
+            hdeep[0] = get_next_op(ops, &ops_cap, nb_ops);
+            hdeep[0]->op = COMPOUND;
+        }
 
-        if (tok_code & CTRL_FLOW) {
-            curr_op = get_next_op(ops, &ops_cap, nb_ops);
-            curr_op->token = *tokens + i;
-            curr_op->count = 1;
-            curr_op->op = tok_code;
-            AbstractOp* cnext = (compound && compound->opsCount) ? &compound->opsArr[compound->opsCount - 1] : NULL;
-            
-            if (cnext && cnext->op == CUSTOM) {
-                (*tokens)[i++] = NULL;
-                cnext->count++;
-            }
-
-            compound = NULL;
-        }else{
-            // Begin of compound 
-            if (!compound) {
-                compound = get_next_op(ops, &ops_cap, nb_ops);
-                compound->op = COMPOUND;
-            }
-
-            AbstractOp* cnext = compound->opsCount ? &compound->opsArr[compound->opsCount - 1] : NULL;
-
-            if (!cnext || (tok_code & REDIRS) || (cnext && cnext->op & REDIRS)) {
-                if ((cnext && cnext->op == CUSTOM) && (tok_code & REDIRS)) {
-                    (*tokens)[i++] = NULL;
-                    cnext->count++;
+        if (hdeep[0]) {
+            if (tok_code & CTRL_FLOW) {
+                hdeep[1] = get_next_op(&hdeep[0]->opsArr, &hdeep[0]->opsCap, &hdeep[0]->opsCount);
+                hdeep[1]->token = *tokens + i;
+                hdeep[1]->count = 1;
+                hdeep[1]->op = tok_code;
+                end_comp |= 1;
+                //printf("Adding null 2 (%s)\n", hdeep[1]->token[0]);
+            }else{
+                // Begin of command 
+                if (!hdeep[2]) {
+                    hdeep[2] = get_next_op(&hdeep[0]->opsArr, &hdeep[0]->opsCap, &hdeep[0]->opsCount);
+                    hdeep[2]->op = COMMAND;
                 }
 
-                cnext = get_next_op(&compound->opsArr, &compound->opsCap, &compound->opsCount);
-                cnext->token = *tokens + i;
-                cnext->op    = tok_code;
+                AbstractOp* cnext = hdeep[2]->opsCount ? &hdeep[2]->opsArr[hdeep[2]->opsCount - 1] : NULL;
+
+                if (!cnext || (tok_code & REDIRS) || (cnext && cnext->op & REDIRS)) {
+                    if ((cnext && cnext->op == TEXT) && (tok_code & REDIRS)) {
+                        cnext->token[cnext->count++] = NULL;
+                        //printf("Adding null 3 (%d)\n", tok_code);
+                    }
+
+                    cnext = get_next_op(&hdeep[2]->opsArr, &hdeep[2]->opsCap, &hdeep[2]->opsCount);
+                    cnext->token = *tokens + i;
+                    cnext->op    = tok_code;
+                }
+
+                cnext->count += 1;
+            }
+        }
+
+        if (end_comp && hdeep[2] && hdeep[2]->opsCount) {
+            AbstractOp* cnext = &hdeep[2]->opsArr[hdeep[2]->opsCount - 1];
+
+            if (cnext->op == TEXT) {
+                cnext->token[cnext->count++] = NULL;
+                //printf("Adding null 4 \n");
             }
 
-            cnext->count += 1;
+            hdeep[2] = NULL;
         }
 
         i++;
-    }
-
-    AbstractOp* cnext = (compound && compound->opsCount) ? &compound->opsArr[compound->opsCount - 1] : NULL;
-    if (cnext && cnext->op == CUSTOM) {
-        (*tokens)[i++] = NULL;
-        cnext->count++;
     }
 
     return i;
@@ -124,20 +137,25 @@ int parse(char* string, const char* sep, char*** tokens, AbstractOp** ops, int* 
 void print_command_tokens(AbstractOp* curr)
 {
     if (curr->op == COMPOUND) {
+        printf("[");
+        for (int j = 0; j < curr->opsCount; j++) {
+            print_command_tokens(&curr->opsArr[j]);
+        }
+        printf("]");
+    }else if (curr->op == COMMAND) {
         printf("(");
         for (int j = 0; j < curr->opsCount; j++) {
             print_command_tokens(&curr->opsArr[j]);
         }
         printf(")");
-    }else if (curr->op & CUSTOM) {
+    }else if (curr->op & TEXT) {
         for (int k = 0; k < curr->count; k++) {
-            printf("%s ", curr->token[k]);
+            char* tk = curr->token[k] ? curr->token[k] : "NULL";
+            printf("%s ", tk);
         }
     }else{
         printf(" %d ", curr->op);
     }
-
-    printf("\n");
 }
 
 AbstractOp* lla_next(AbstractOp* arr, int pos, int cap)
@@ -148,4 +166,15 @@ AbstractOp* lla_next(AbstractOp* arr, int pos, int cap)
 AbstractOp* lla_prev(AbstractOp* arr, int pos, int cap)
 {
     return pos - 1 > 0 && pos - 1 < cap ? &arr[pos-1] : NULL;
+}
+
+int get_next_builtin(AbstractOp* cmds)
+{
+    for (int i = 0; i < cmds->opsCount; i++) {
+        if (cmds->opsArr[i].count & BUILTIN) {
+            return i;
+        }
+    }
+
+    return -1;
 }

@@ -6,16 +6,20 @@
 #include <string.h>
 #include "common.h"
 #include "parser.h"
+#include "bg.h"
 
 void get_prompt(char* buff);
 
-int exec_command_gen(AbstractOp* curr, AbstractOp* prev, AbstractOp* next, int pipes[2][2], int* cp);
+int exec_builtin(Shell* shell, AbstractOp* cmd, AbstractOp* next);
 
-int exec_compound_cmd(AbstractOp* cmd);
+int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractOp* next, int pipes[2][2], int* cp, int* progress);
 
-void execute_commands(AbstractOp* cmds, int nb);
+int exec_compound_cmd(Shell* shell, AbstractOp* cmd);
 
-void process_input(char* input);
+int execute_commands(Shell* shell, AbstractOp* cmds, int nb);
 
+void process_input(Shell* shell, char* input);
+
+void destroy_shell(Shell* shell);
 
 #endif

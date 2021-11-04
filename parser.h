@@ -40,6 +40,8 @@ AbstractOp* lla_next(AbstractOp* arr, int pos, int cap);
 
 AbstractOp* lla_prev(AbstractOp* arr, int pos, int cap);
 
+int get_next_builtin(AbstractOp* pcmd);
+
 void print_command_tokens(AbstractOp* curr);
 
 #endif
