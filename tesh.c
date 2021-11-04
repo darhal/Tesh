@@ -145,7 +145,7 @@ void process_input(char* input)
     /*int count = */parse(input, " ", &tokens, &ops, &nb_ops);
     execute_commands(ops, nb_ops);
     
-    printf("\n");
+    // printf("\n");
     free_abstract_op(ops, nb_ops);
     free(tokens);
 }

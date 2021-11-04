@@ -137,7 +137,7 @@ void print_command_tokens(AbstractOp* curr)
         printf(" %d ", curr->op);
     }
 
-    // printf("\n");
+    printf("\n");
 }
 
 AbstractOp* lla_next(AbstractOp* arr, int pos, int cap)
