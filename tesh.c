@@ -3,8 +3,10 @@
 #include <assert.h>
 #include <unistd.h>
 #include <signal.h>
-#include <sys/wait.h>
 #include <fcntl.h>
+#include <sys/wait.h>
+#include <readline/readline.h>
+#include <readline/history.h>
 #include "tesh.h"
 
 void get_prompt(char* buff)
@@ -81,8 +83,11 @@ int exec_compound_cmd(Shell* shell, AbstractOp* cmd)
     if (prog_cmd) {
         // fprintf(stderr, "Executing : %s\n", prog_cmd->token[0]);
         code = execvp(prog_cmd->token[0], prog_cmd->token);
-        if (code != 0)
-            fprintf(stderr, "Invalid command\n");
+
+        if (code != 0) {
+            fprintf(stderr, "The given command '%s' is invalid\n", prog_cmd->token[0]);
+            exit(code);
+        }
     }
 
     return code;
@@ -151,19 +156,26 @@ int execute_commands(Shell* shell, AbstractOp* cmds, int nb)
     int pipes[2][2] = {{0, 0}, {0, 0}};
     assert(pipe(pipes[0]) != -1);
     assert(pipe(pipes[1]) != -1);
+    int i = 0;
 
-    for (int i = 0; i < nb; i++) {
+    for (; i < nb; i++) {
         AbstractOp* curr = &cmds[i];
         AbstractOp* prev = lla_prev(cmds, i, nb);
         AbstractOp* next = lla_next(cmds, i, nb);
         int is_succ = status == 0;
-        int continue_exec = !(curr->op & AND_OR) || (curr->op == AND && is_succ) || (curr->op == OR && !is_succ);
-        
+        int continue_exec = (!(curr->op & AND_OR) || (curr->op == AND && is_succ) || (curr->op == OR && !is_succ));
+
         if (continue_exec) {
             //printf("Executing : ");
-            //print_command_tokens(curr); printf("\n");
+            // print_command_tokens(curr); printf("\n");
             status = exec_command_gen(shell, curr, prev, next, pipes, &current_pipe, &i);
         }else{
+            i = fast_forward(cmds, i, nb, AND_OR | SEMICOLON);
+        }
+    }
+
+    if (shell->options & QUIT_ON_ERR) {
+        if (status != 0) {
             return status;
         }
     }
@@ -171,12 +183,18 @@ int execute_commands(Shell* shell, AbstractOp* cmds, int nb)
     return status;
 }
 
-void pp_commands(Shell* shell, AbstractOp* cmds, int nb)
+int pp_commands(Shell* shell, AbstractOp* cmds, int nb)
 {
+    int status = 0;
+
     for (int i = 0; i < nb; i++) {
         AbstractOp* curr = &cmds[i];
         AbstractOp* next = lla_next(cmds, i, nb);
         int prun = next && next->op == PARALLEL;
+
+        if ((shell->options & QUIT_ON_ERR) && status != 0) {
+            return status;
+        }
         
         if (prun) {
             pid_t child = fork();
@@ -189,26 +207,134 @@ void pp_commands(Shell* shell, AbstractOp* cmds, int nb)
                 printf("[%d]\n", child);
             }
         }else{
-            // print_command_tokens(curr); printf("\n");
-            execute_commands(shell, curr->opsArr, curr->opsCount);
+            status = execute_commands(shell, curr->opsArr, curr->opsCount);
         }
+
+        // print_command_tokens(curr); printf("\n");
     }
+
+    return status;
 }
 
-void process_input(Shell* shell, char* input)
+int process_input(Shell* shell, char* input)
 {
     char** tokens;
     AbstractOp* ops = NULL;
     int nb_ops = 0;
     /*int count = */parse(input, " ", &tokens, &ops, &nb_ops);
-    pp_commands(shell, ops, nb_ops);
+    int status = pp_commands(shell, ops, nb_ops);
     free_abstract_op(ops, nb_ops);
     free(tokens);
+    return status;
 }
 
 void destroy_shell(Shell* shell)
 {
     if (shell->background) {
         free(shell->background);
+    }
+}
+
+void loop_interactive(Shell* shell)
+{
+    rl_bind_key('\t', rl_complete);
+    char prompt_buff[1024];
+
+    while (1) {
+        // Check background procs
+        check_bg_proc(shell);
+
+        // Display prompt and read input
+        get_prompt(prompt_buff);
+        char* input = readline(prompt_buff);
+
+        // Check for EOF.
+        if (!input)
+            break;
+
+        // Add input to readline history.
+        add_history(input);
+
+        // Process current input
+        process_input(shell, input);
+
+        // Free buffer that was allocated by readline
+        free(input);
+    }
+}
+
+void loop_file(Shell* shell, const char* filename)
+{
+    int fd = open(filename, O_RDONLY);
+    int init_cap = 64;
+    int cursor = 0;
+    char* input = NULL;
+    int status = 0;
+
+    if (fd == -1) {
+        return;
+    }
+
+    if (isatty(fd)) {
+        close(fd);
+        return;
+    }
+
+    input = realloc(input, init_cap * sizeof(char));
+    int bread = 0;
+    int lastBegin = 0;
+
+    while ((bread = read(fd, input + cursor, init_cap - 1)) > 0) {
+        init_cap *= 4;
+        input = realloc(input, init_cap * sizeof(char));
+        cursor += bread;
+    }
+
+    for (int i = 0; i < cursor; i++) {
+        if ((shell->options & QUIT_ON_ERR) && status != 0) {
+            printf("Aborting ...\n");
+            break;
+        }
+
+        if (input[i] == '\n' || i == cursor - 1) {
+            input[i] = '\0'; // Force terminate the string
+            // printf("Command (%d): %s\n", i, input + lastBegin);
+            status = process_input(shell, input + lastBegin);
+            lastBegin = i + 1;
+        }
+    }
+
+    free(input);
+    close(fd);
+}
+
+void shell_loop(Shell* shell)
+{
+    if (shell->scriptfile) {
+        loop_file(shell, shell->scriptfile);
+    }else{
+        loop_interactive(shell);
+    }
+}
+
+void parse_args(Shell* shell, int argc, char** argv)
+{
+    int opt;
+
+    while ((opt = getopt(argc, argv, "er")) != -1) { 
+        switch(opt) {
+        case 'r':
+            shell->options |= INTERACTIVE;
+            break;
+        case 'e':
+            shell->options |= QUIT_ON_ERR;
+            break;
+        }
+    }
+
+    // Additional arguments
+    for(; optind < argc; optind++) {
+        shell->scriptfile = argv[optind];
+        break;
     }
 }

@@ -47,12 +47,13 @@ extern const int TOKENS_SIZE;
 
 enum OPTIONS
 {
-    QUIT_ON_ERR,
-    INTERACTIVE,
+    QUIT_ON_ERR = 1,
+    INTERACTIVE = 1 << 1,
 };
 
 typedef struct _Shell 
 {
+    const char* scriptfile;
     pid_t* background;
     int count;
     int capacity;

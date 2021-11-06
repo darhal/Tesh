@@ -168,6 +168,19 @@ AbstractOp* lla_prev(AbstractOp* arr, int pos, int cap)
     return pos - 1 > 0 && pos - 1 < cap ? &arr[pos-1] : NULL;
 }
 
+int fast_forward(AbstractOp* arr, int pos, int cap, int flags)
+{
+    int i = pos + 1;
+
+    for (i = pos + 1; i < cap; i++) {
+        if (arr[i].op & flags) {
+            return i;
+        }
+    }
+
+    return cap; 
+}
+
 int get_next_builtin(AbstractOp* cmds)
 {
     for (int i = 0; i < cmds->opsCount; i++) {
