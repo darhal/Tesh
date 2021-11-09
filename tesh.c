@@ -125,7 +125,7 @@ int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractO
                 // printf("Reading from : %d\n", (*cp + 1) % 2);
                 close(read_pipe[FD_WRITE]);
                 assert(dup2(read_pipe[FD_READ], STDIN_FILENO) != -1);
-                // close(read_pipe[FD_READ]);
+                close(read_pipe[FD_READ]);
             }
 
             if (next && next->op == PIPE) {
@@ -133,7 +133,7 @@ int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractO
                 // printf("Writting to : %d\n", *cp);
                 close(write_pipe[FD_READ]);
                 assert(dup2(write_pipe[FD_WRITE], STDOUT_FILENO) != -1);
-                // close(write_pipe[FD_WRITE]);
+                close(write_pipe[FD_WRITE]);
             }
 
             return exec_compound_cmd(shell, curr);
