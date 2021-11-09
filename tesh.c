@@ -13,7 +13,7 @@ void get_prompt(char* buff)
 {
     char hostname[128];
     char cwd[1024];
-    const char* username = getlogin();
+    const char* username = getenv("USER");
     gethostname(hostname, 128);
     getcwd(cwd, 1024);
     sprintf(buff, "%s@%s:%s$ ", username, hostname, cwd);
