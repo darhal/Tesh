@@ -292,7 +292,7 @@ void loop_file(Shell* shell, const char* filename)
 
     for (int i = 0; i < cursor; i++) {
         if ((shell->options & QUIT_ON_ERR) && status != 0) {
-            printf("Aborting ...\n");
+            // printf("Aborting ...\n");
             break;
         }
 
