@@ -2,7 +2,7 @@
 
 int main(int argc, char** argv) 
 {
-    Shell shell = { NULL, NULL, 0, 0 };
+    Shell shell = {NULL, NULL, 0, 0};
 
     parse_args(&shell, argc, argv);
     shell_loop(&shell);

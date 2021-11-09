@@ -1,0 +1,9 @@
+false && grep main < main.txt | wc
+grep main < main.txt | wc
+grep main < main.txt | wc
+true && grep main < main.txt | wc
+true || grep main < main.txt | wc
+false || grep main < main.txt | wc
+cat main.txt | grep main | grep -n main
+blabla
+echo hello!

@@ -18,8 +18,18 @@ int exec_compound_cmd(Shell* shell, AbstractOp* cmd);
 
 int execute_commands(Shell* shell, AbstractOp* cmds, int nb);
 
-void process_input(Shell* shell, char* input);
+int pp_commands(Shell* shell, AbstractOp* cmds, int nb);
+
+int process_input(Shell* shell, char* input);
 
 void destroy_shell(Shell* shell);
+
+void loop_interactive(Shell* shell);
+
+void loop_file(Shell* shell, const char* filename);
+
+void shell_loop(Shell* shell);
+
+void parse_args(Shell* shell, int argc, char** argv);
 
 #endif
