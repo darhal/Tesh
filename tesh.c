@@ -5,18 +5,25 @@
 #include <signal.h>
 #include <fcntl.h>
 #include <sys/wait.h>
-#include <readline/readline.h>
-#include <readline/history.h>
+#include <dlfcn.h>
 #include "tesh.h"
+#include "readline.h"
 
-void get_prompt(char* buff)
+void get_prompt(char** prompt, int* cap)
 {
-    char hostname[128];
-    char cwd[1024];
+    char hostname[1024];
+    gethostname(hostname, 1024);
+    char* cwd = getcwd(NULL, 0); // as of POSIX.1-2001
     const char* username = getenv("USER");
-    gethostname(hostname, 128);
-    getcwd(cwd, 1024);
-    sprintf(buff, "%s@%s:%s$ ", username, hostname, cwd);
+    int total_size = strlen(username) + strlen(cwd) + 1024 + 8;
+
+    if (total_size >= *cap) {
+        *prompt = realloc(*prompt, total_size * sizeof(char));
+        *cap = total_size;
+    }
+    
+    sprintf(*prompt, "%s@%s:%s$ ", username, hostname, cwd);
+    free(cwd);
 }
 
 int exec_builtin(Shell* shell, AbstractOp* cmd, AbstractOp* next)
@@ -96,8 +103,8 @@ int exec_compound_cmd(Shell* shell, AbstractOp* cmd)
 int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractOp* next, int pipes[2][2], int* cp, int* progress)
 {
     pid_t child = -1;
-    int* write_fd = pipes[*cp];
-    int* read_fd  = pipes[(*cp + 1) % 2];
+    int* write_pipe = pipes[*cp];
+    int* read_pipe  = pipes[(*cp + 1) % 2];
 
     if (curr->op & BUILTIN) {
         AbstractOp* arg = NULL;
@@ -116,25 +123,31 @@ int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractO
             if (prev && prev->op == PIPE) {
                 // Read from pipe
                 // printf("Reading from : %d\n", (*cp + 1) % 2);
-                close(read_fd[FD_WRITE]);
-                assert(dup2(read_fd[FD_READ], STDIN_FILENO) != -1);
-                close(read_fd[FD_READ]);
+                close(read_pipe[FD_WRITE]);
+                assert(dup2(read_pipe[FD_READ], STDIN_FILENO) != -1);
+                // close(read_pipe[FD_READ]);
             }
 
             if (next && next->op == PIPE) {
                 // Write to pipe
                 // printf("Writting to : %d\n", *cp);
-                close(write_fd[FD_READ]);
-                assert(dup2(write_fd[FD_WRITE], STDOUT_FILENO) != -1);
-                close(write_fd[FD_WRITE]);
+                close(write_pipe[FD_READ]);
+                assert(dup2(write_pipe[FD_WRITE], STDOUT_FILENO) != -1);
+                // close(write_pipe[FD_WRITE]);
             }
 
             return exec_compound_cmd(shell, curr);
         }
     }else if (curr->op == PIPE) {
-        close(write_fd[FD_WRITE]);
+        // We need to store this here to make sure we close it after we close the read pipeline 
+        // otherwise the descriptors will overlap and it will cause a bug!
+        int write_fd = write_pipe[FD_WRITE];
+        close(read_pipe[FD_READ]);
+        close(read_pipe[FD_WRITE]);
         *cp = (*cp + 1) % 2;
         pipe(pipes[*cp]);
+        close(write_fd);
+        //printf("Already existinga fd  (cp = %d) : R: %d W: %d\n", *cp, pipes[*cp][FD_READ], pipes[*cp][FD_WRITE]);
         // printf("[SWAPPING] (cp = %d) Next is : %d | prev is : %d\n", *cp, next ? next->op : -1, prev ? prev->op : -1);
     }
 
@@ -166,20 +179,20 @@ int execute_commands(Shell* shell, AbstractOp* cmds, int nb)
         int continue_exec = (!(curr->op & AND_OR) || (curr->op == AND && is_succ) || (curr->op == OR && !is_succ));
 
         if (continue_exec) {
-            //printf("Executing : ");
-            // print_command_tokens(curr); printf("\n");
+            // printf("Executing : "); print_command_tokens(curr); printf("\n");
             status = exec_command_gen(shell, curr, prev, next, pipes, &current_pipe, &i);
         }else{
             i = fast_forward(cmds, i, nb, AND_OR | SEMICOLON);
         }
+
+        // printf("[LOOP] fd (cp = %d) : R: %d W: %d\n", 0, pipes[0][FD_READ], pipes[0][FD_WRITE]);
+        // printf("[LOOP] fd (cp = %d) : R: %d W: %d\n", 1, pipes[1][FD_READ], pipes[1][FD_WRITE]);
     }
 
-    if (shell->options & QUIT_ON_ERR) {
-        if (status != 0) {
-            return status;
-        }
-    }
-
+    close(pipes[0][FD_WRITE]);
+    close(pipes[0][FD_READ]);
+    close(pipes[1][FD_WRITE]);
+    close(pipes[1][FD_READ]);
     return status;
 }
 
@@ -238,15 +251,16 @@ void destroy_shell(Shell* shell)
 void loop_interactive(Shell* shell)
 {
     rl_bind_key('\t', rl_complete);
-    char prompt_buff[1024];
+    char* prompt = NULL;
+    int prompt_cap = 0;
 
     while (1) {
         // Check background procs
         check_bg_proc(shell);
 
         // Display prompt and read input
-        get_prompt(prompt_buff);
-        char* input = readline(prompt_buff);
+        get_prompt(&prompt, &prompt_cap);
+        char* input = readline(prompt);
 
         // Check for EOF.
         if (!input)
@@ -261,16 +275,57 @@ void loop_interactive(Shell* shell)
         // Free buffer that was allocated by readline
         free(input);
     }
+
+    // Free allocated buffer 
+    free(prompt);
+}
+
+void loop_interactive_without_readline(Shell* shell)
+{
+    char* prompt = NULL;
+    int prompt_cap = 0;
+    int init_cap = 1024;
+    int cursor = 0;
+    int c;
+    char* input = realloc(NULL, init_cap * sizeof(char));
+
+    while (1) {
+        // Check background procs
+        check_bg_proc(shell);
+
+        // Display prompt and read input
+        get_prompt(&prompt, &prompt_cap);
+        printf("%s", prompt);
+        fflush(stdout);
+
+        // Get input
+        while ((c = getchar()) != '\n' && c != EOF) { 
+            if (cursor + 1 > init_cap) {
+                init_cap *= 2;
+                input = realloc(input, init_cap * sizeof(char));
+            }
+
+            input[cursor] = c;
+            cursor += 1;
+        }
+
+        // Force terminate the string and reset cursor
+        input[cursor] = '\0';
+        cursor = 0;
+
+        // Process current input
+        process_input(shell, input);
+    }
+
+    // Free allocated buffer 
+    free(input);
+    free(prompt);
 }
 
 void loop_file(Shell* shell, const char* filename)
 {
     int fd = open(filename, O_RDONLY);
-    int init_cap = 64;
-    int cursor = 0;
-    char* input = NULL;
-    int status = 0;
-
+    
     if (fd == -1) {
         return;
     }
@@ -280,13 +335,20 @@ void loop_file(Shell* shell, const char* filename)
         return;
     }
 
-    input = realloc(input, init_cap * sizeof(char));
+    int status = 0;
     int bread = 0;
     int lastBegin = 0;
-
+    int init_cap = 1024;
+    int cursor = 0;
+    char* input = NULL;
+    input = realloc(input, init_cap * sizeof(char));
+    
     while ((bread = read(fd, input + cursor, init_cap - 1)) > 0) {
-        init_cap *= 4;
-        input = realloc(input, init_cap * sizeof(char));
+        if (cursor + bread > init_cap) {
+            init_cap *= 2;
+            input = realloc(input, init_cap * sizeof(char));
+        }
+
         cursor += bread;
     }
 
@@ -312,8 +374,17 @@ void shell_loop(Shell* shell)
 {
     if (shell->scriptfile) {
         loop_file(shell, shell->scriptfile);
-    }else{
+    }else if (shell->options & INTERACTIVE) {
+        void* lib_readline = dlopen("libreadline.so", RTLD_LAZY);
+        *(void**)(&rl_command_func) = dlsym(lib_readline, "rl_command_func");
+        *(void**)(&rl_bind_key) = dlsym(lib_readline, "rl_bind_key");
+        *(void**)(&rl_complete) = dlsym(lib_readline, "rl_complete");
+        *(void**)(&readline) = dlsym(lib_readline, "readline");
+        *(void**)(&add_history) = dlsym(lib_readline, "add_history");
         loop_interactive(shell);
+        dlclose(lib_readline);
+    }else{
+        loop_interactive_without_readline(shell);
     }
 }
 

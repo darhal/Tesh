@@ -7,3 +7,6 @@ false || grep main < main.txt | wc
 cat main.txt | grep main | grep -n main
 blabla
 echo hello!
+
+grep main < main.c | wc
+grep main < main.c | wc | grep 34

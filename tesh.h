@@ -8,7 +8,7 @@
 #include "parser.h"
 #include "bg.h"
 
-void get_prompt(char* buff);
+void get_prompt(char** prompt, int* cap);
 
 int exec_builtin(Shell* shell, AbstractOp* cmd, AbstractOp* next);
 
