@@ -13,7 +13,6 @@ int count_chars(const char* string, char sep)
     return count;
 }
 
-
 int contains(const char* string, const char** tokens, int nb_tok)
 {
     if (!string) 

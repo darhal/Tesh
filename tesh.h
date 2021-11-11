@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "common.h"
+#include "utils.h"
 #include "parser.h"
 #include "bg.h"
 
@@ -26,7 +27,7 @@ void destroy_shell(Shell* shell);
 
 void loop_interactive(Shell* shell);
 
-void loop_file(Shell* shell, const char* filename);
+int loop_file(Shell* shell, const char* filename);
 
 void shell_loop(Shell* shell);
 

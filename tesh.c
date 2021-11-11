@@ -284,10 +284,8 @@ void loop_interactive_without_readline(Shell* shell)
 {
     char* prompt = NULL;
     int prompt_cap = 0;
-    int init_cap = 1024;
-    int cursor = 0;
-    int c;
-    char* input = realloc(NULL, init_cap * sizeof(char));
+    int input_cap = 1024;
+    char* input = realloc(NULL, input_cap * sizeof(char));
 
     while (1) {
         // Check background procs
@@ -299,19 +297,10 @@ void loop_interactive_without_readline(Shell* shell)
         fflush(stdout);
 
         // Get input
-        while ((c = getchar()) != '\n' && c != EOF) { 
-            if (cursor + 1 > init_cap) {
-                init_cap *= 2;
-                input = realloc(input, init_cap * sizeof(char));
-            }
+        int ok = read_input(STDIN_FILENO, &input, &input_cap);
 
-            input[cursor] = c;
-            cursor += 1;
-        }
-
-        // Force terminate the string and reset cursor
-        input[cursor] = '\0';
-        cursor = 0;
+        if (!ok) // EOF or ERROR
+            break;
 
         // Process current input
         process_input(shell, input);
@@ -322,52 +311,39 @@ void loop_interactive_without_readline(Shell* shell)
     free(prompt);
 }
 
-void loop_file(Shell* shell, const char* filename)
+int loop_file(Shell* shell, const char* filename)
 {
     int fd = open(filename, O_RDONLY);
     
     if (fd == -1) {
-        return;
+        return 0;
     }
 
     if (isatty(fd)) {
         close(fd);
-        return;
+        return 0;
     }
 
     int status = 0;
-    int bread = 0;
-    int lastBegin = 0;
-    int init_cap = 1024;
-    int cursor = 0;
-    char* input = NULL;
-    input = realloc(input, init_cap * sizeof(char));
-    
-    while ((bread = read(fd, input + cursor, init_cap - 1)) > 0) {
-        if (cursor + bread > init_cap) {
-            init_cap *= 2;
-            input = realloc(input, init_cap * sizeof(char));
-        }
+    int input_cap = 1024;
+    char* input = realloc(NULL, input_cap * sizeof(char));
 
-        cursor += bread;
-    }
+     // Get input
+    int ok = read_input(fd, &input, &input_cap);
 
-    for (int i = 0; i < cursor; i++) {
+    while (ok) {
         if ((shell->options & QUIT_ON_ERR) && status != 0) {
             // printf("Aborting ...\n");
             break;
         }
 
-        if (input[i] == '\n' || i == cursor - 1) {
-            input[i] = '\0'; // Force terminate the string
-            // printf("Command (%d): %s\n", i, input + lastBegin);
-            status = process_input(shell, input + lastBegin);
-            lastBegin = i + 1;
-        }
+        status = process_input(shell, input);
+        ok = read_input(fd, &input, &input_cap);
     }
 
     free(input);
     close(fd);
+    return 1;
 }
 
 void shell_loop(Shell* shell)
