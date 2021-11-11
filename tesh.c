@@ -284,7 +284,7 @@ void loop_interactive_without_readline(Shell* shell)
 {
     char* prompt = NULL;
     int prompt_cap = 0;
-    int input_cap = 1024;
+    int input_cap = 512;
     char* input = realloc(NULL, input_cap * sizeof(char));
 
     while (1) {
@@ -325,7 +325,7 @@ int loop_file(Shell* shell, const char* filename)
     }
 
     int status = 0;
-    int input_cap = 1024;
+    int input_cap = 512;
     char* input = realloc(NULL, input_cap * sizeof(char));
 
      // Get input

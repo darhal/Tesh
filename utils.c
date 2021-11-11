@@ -8,7 +8,7 @@ int read_input(int fd, char** input, int* cap)
     int bytes_read = 0;
 
     do {
-        if (cursor + 1 > *cap) {
+        if (cursor + 1 >= *cap) {
             *cap *= 2;
             *input = realloc(input, *cap * sizeof(char));
         }
