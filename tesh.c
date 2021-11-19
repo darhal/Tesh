@@ -280,68 +280,55 @@ void loop_interactive(Shell* shell)
     free(prompt);
 }
 
-void loop_interactive_without_readline(Shell* shell)
+void loop_without_readline(Shell* shell, int fd)
 {
     char* prompt = NULL;
     int prompt_cap = 0;
     int input_cap = 512;
+    int status = 0;
     char* input = realloc(NULL, input_cap * sizeof(char));
+    int atty = isatty(fd);
 
     while (1) {
         // Check background procs
         check_bg_proc(shell);
 
         // Display prompt and read input
-        get_prompt(&prompt, &prompt_cap);
-        printf("%s", prompt);
-        fflush(stdout);
-
+        if (atty) {
+            get_prompt(&prompt, &prompt_cap);
+            printf("%s", prompt);
+            fflush(stdout);
+        }
+        
         // Get input
-        int ok = read_input(STDIN_FILENO, &input, &input_cap);
+        int ok = read_input(fd, &input, &input_cap);
 
         if (!ok) // EOF or ERROR
             break;
 
         // Process current input
-        process_input(shell, input);
+        status = process_input(shell, input);
+
+        if ((shell->options & QUIT_ON_ERR) && status != 0) {
+            // printf("Aborting ...\n");
+            break;
+        }
     }
 
     // Free allocated buffer 
     free(input);
-    free(prompt);
+    if (prompt)
+        free(prompt);
 }
 
 int loop_file(Shell* shell, const char* filename)
 {
     int fd = open(filename, O_RDONLY);
     
-    if (fd == -1) {
+    if (fd == -1)
         return 0;
-    }
 
-    if (isatty(fd)) {
-        close(fd);
-        return 0;
-    }
-
-    int status = 0;
-    int input_cap = 512;
-    char* input = realloc(NULL, input_cap * sizeof(char));
-
-     // Get input
-    int ok = read_input(fd, &input, &input_cap);
-
-    while (ok) {
-        if ((shell->options & QUIT_ON_ERR) && status != 0) {
-            // printf("Aborting ...\n");
-            break;
-        }
-
-        status = process_input(shell, input);
-        ok = read_input(fd, &input, &input_cap);
-    }
-
-    free(input);
+    loop_without_readline(shell, fd);
     close(fd);
     return 1;
 }
@@ -360,7 +347,7 @@ void shell_loop(Shell* shell)
         loop_interactive(shell);
         dlclose(lib_readline);
     }else{
-        loop_interactive_without_readline(shell);
+        loop_without_readline(shell, STDIN_FILENO);
     }
 }
 

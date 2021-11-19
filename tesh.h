@@ -27,6 +27,8 @@ void destroy_shell(Shell* shell);
 
 void loop_interactive(Shell* shell);
 
+void loop_without_readline(Shell* shell, int fd);
+
 int loop_file(Shell* shell, const char* filename);
 
 void shell_loop(Shell* shell);
