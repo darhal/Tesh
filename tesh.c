@@ -116,21 +116,28 @@ int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractO
 
         return exec_builtin(shell, curr, arg);
     } else if (curr->op == COMMAND) {
+        int prevIsPipe = prev && prev->op == PIPE;
+        int nextIsPipe = next && next->op == PIPE;
+
+        if (nextIsPipe) {
+            pipe(write_pipe);
+        }
+
         child = fork();
 
         if (child == 0) {
             // printf("(cp = %d) Next is : %d | prev is : %d\n", *cp, next ? next->op : -1, prev ? prev->op : -1);
-            if (prev && prev->op == PIPE) {
+            if (prevIsPipe) {
                 // Read from pipe
-                // printf("Reading from : %d\n", (*cp + 1) % 2);
+                // printf("Reading from : %d\n", read_pipe[FD_READ]);
                 close(read_pipe[FD_WRITE]);
                 assert(dup2(read_pipe[FD_READ], STDIN_FILENO) != -1);
                 close(read_pipe[FD_READ]);
             }
 
-            if (next && next->op == PIPE) {
+            if (nextIsPipe) {
                 // Write to pipe
-                // printf("Writting to : %d\n", *cp);
+                // printf("Writting to : %d\n", write_pipe[FD_WRITE]);
                 close(write_pipe[FD_READ]);
                 assert(dup2(write_pipe[FD_WRITE], STDOUT_FILENO) != -1);
                 close(write_pipe[FD_WRITE]);
@@ -139,15 +146,22 @@ int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractO
             return exec_compound_cmd(shell, curr);
         }
     }else if (curr->op == PIPE) {
+        if (read_pipe[FD_READ]) {
+            close(read_pipe[FD_READ]);
+        }
+
+        read_pipe[FD_READ] = write_pipe[FD_READ];
+        close(write_pipe[FD_WRITE]);
+        write_pipe[FD_WRITE] = 0;
         // We need to store this here to make sure we close it after we close the read pipeline 
         // otherwise the descriptors will overlap and it will cause a bug!
-        int write_fd = write_pipe[FD_WRITE];
+        /*int write_fd = write_pipe[FD_WRITE];
         close(read_pipe[FD_READ]);
         close(read_pipe[FD_WRITE]);
         *cp = (*cp + 1) % 2;
         pipe(pipes[*cp]);
-        close(write_fd);
-        //printf("Already existinga fd  (cp = %d) : R: %d W: %d\n", *cp, pipes[*cp][FD_READ], pipes[*cp][FD_WRITE]);
+        close(write_fd);*/
+        // printf("Already existinga fd  (cp = %d) : R: %d W: %d\n", *cp, pipes[*cp][FD_READ], pipes[*cp][FD_WRITE]);
         // printf("[SWAPPING] (cp = %d) Next is : %d | prev is : %d\n", *cp, next ? next->op : -1, prev ? prev->op : -1);
     }
 
@@ -167,8 +181,8 @@ int execute_commands(Shell* shell, AbstractOp* cmds, int nb)
     int status = 0;
     int current_pipe = 0;
     int pipes[2][2] = {{0, 0}, {0, 0}};
-    assert(pipe(pipes[0]) != -1);
-    assert(pipe(pipes[1]) != -1);
+    // pipe(pipes[0]);
+    // pipe(pipes[1]);
     int i = 0;
 
     for (; i < nb; i++) {
@@ -189,10 +203,17 @@ int execute_commands(Shell* shell, AbstractOp* cmds, int nb)
         // printf("[LOOP] fd (cp = %d) : R: %d W: %d\n", 1, pipes[1][FD_READ], pipes[1][FD_WRITE]);
     }
 
-    close(pipes[0][FD_WRITE]);
-    close(pipes[0][FD_READ]);
-    close(pipes[1][FD_WRITE]);
-    close(pipes[1][FD_READ]);
+    
+    if (pipes[0][FD_WRITE])
+        close(pipes[0][FD_WRITE]);
+
+    if (pipes[0][FD_READ])
+        close(pipes[0][FD_READ]);
+    
+    if (pipes[1][FD_READ])
+        close(pipes[1][FD_READ]);
+
+    // close(pipes[1][FD_WRITE]); // Not needed
     return status;
 }
 
@@ -256,7 +277,7 @@ void loop_interactive(Shell* shell)
 
     while (1) {
         // Check background procs
-        check_bg_proc(shell);
+        // check_bg_proc(shell);
 
         // Display prompt and read input
         get_prompt(&prompt, &prompt_cap);
@@ -289,7 +310,7 @@ void loop_interactive_without_readline(Shell* shell)
 
     while (1) {
         // Check background procs
-        check_bg_proc(shell);
+        // check_bg_proc(shell);
 
         // Display prompt and read input
         get_prompt(&prompt, &prompt_cap);
@@ -303,10 +324,15 @@ void loop_interactive_without_readline(Shell* shell)
             break;
 
         // Process current input
-        process_input(shell, input);
+        int status = process_input(shell, input);
+
+        if ((shell->options & QUIT_ON_ERR) && status != 0) {
+            // printf("Aborting ...\n");
+            break;
+        }
     }
 
-    // Free allocated buffer 
+    // Free allocated buffer
     free(input);
     free(prompt);
 }

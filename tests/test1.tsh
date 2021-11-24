@@ -13,3 +13,6 @@ echo hello!
 
 grep main < main.c | wc
 grep main < main.c | wc | grep 34
+false || grep main < main.c | wc
+true && grep main < main.c | wc
+cat main.c | grep main | grep -n main
