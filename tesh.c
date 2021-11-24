@@ -73,7 +73,7 @@ int exec_compound_cmd(Shell* shell, AbstractOp* cmd)
                 flags = O_CREAT | O_WRONLY | ((prev->op == D_RIGHT) ? O_TRUNC : O_APPEND);
                 direction = STDOUT_FILENO;
             }else if (prev && (prev->op & REDIR_LEFT)) {
-                flags = O_CREAT| O_RDONLY; // | (prev->op == D_LEFT) ? O_TRUNC : O_APPEND;
+                flags = O_CREAT | O_RDONLY; // | (prev->op == D_LEFT) ? O_TRUNC : O_APPEND;
                 direction = STDIN_FILENO;
             }
         }
