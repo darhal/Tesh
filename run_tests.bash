@@ -14,7 +14,7 @@ fi
 
 echo '######### Installing dependencies'
 apt-get update
-apt-get -y install --no-install-recommends build-essential libreadline-dev electric-fence sudo
+apt-get -y install --no-install-recommends build-essential libreadline-dev electric-fence
 
 echo '######### Trying to build'
 rm -f tesh # in case it was committed
@@ -53,8 +53,8 @@ echo Expected output:
 echo ------------------------------------------------
 cat $te
 echo ------------------------------------------------
-mo=`md10sum < $to | awk '{print $1}'`
-me=`md10sum < $te | awk '{print $1}'`
+mo=`md5sum < $to | awk '{print $1}'`
+me=`md5sum < $te | awk '{print $1}'`
 test_nb=$((test_nb+1))
 if ! [ "$mo" = "$me" ]; then
   test_failed=$((test_failed+1))
@@ -142,7 +142,7 @@ echo '######### Trying to test tesh with a more advanced script 2 (Pipes)'
 cat <<-EOF > $ti 2>&1
 cat ./tests/fixtures/redir/lorem-ipsum-long | grep Duis
 cat ./tests/fixtures/redir/lorem-ipsum-long | grep am | grep Ut > /tmp/TMPFILE ; cat ./tests/fixtures/redir/lorem-ipsum-long | grep Lorem >> /tmp/TMPFILE ; tac < /tmp/TMPFILE
-cat ./tests/fixtures/redir/lorem-ipsum-very-long | md10sum
+cat ./tests/fixtures/redir/lorem-ipsum-very-long | md5sum
 EOF
 timeout 5s bash -c "./tesh < $ti" > $to 2>&1
 timeout 10s bash -c "`cat $ti`" > $te 2>&1

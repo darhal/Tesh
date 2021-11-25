@@ -225,14 +225,14 @@ int pp_commands(Shell* shell, AbstractOp* cmds, int nb)
         if (prun) {
             pid_t child = fork();
 
-            if (child == 0) {
-                usleep(5000);
-                int status = execute_commands(shell, curr->opsArr, curr->opsCount);
-                exit(status);
-            }else{
+            if (child > 0) {
                 printf("[%d]\n", child);
                 fflush(stdout);
                 add_bg_proc(shell, child);
+            }else if (child == 0) {
+                usleep(5000);
+                int status = execute_commands(shell, curr->opsArr, curr->opsCount);
+                exit(status);
             }
         }else{
             status = execute_commands(shell, curr->opsArr, curr->opsCount);
