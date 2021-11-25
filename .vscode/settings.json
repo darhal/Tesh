@@ -1,7 +1,0 @@
-{
-    "files.associations": {
-        "signal.h": "c",
-        "tesh.h": "c",
-        "parser.h": "c"
-    }
-}

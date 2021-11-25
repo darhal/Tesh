@@ -269,46 +269,16 @@ void destroy_shell(Shell* shell)
     }
 }
 
-void loop_interactive(Shell* shell)
+void main_loop(Shell* shell, int fd)
 {
-    rl_bind_key('\t', rl_complete);
+    if (rl_bind_key && rl_complete)
+        rl_bind_key('\t', rl_complete);
+    
     char* prompt = NULL;
     int prompt_cap = 0;
-
-    while (1) {
-        // Check background procs
-        // check_bg_proc(shell);
-
-        // Display prompt and read input
-        get_prompt(&prompt, &prompt_cap);
-        char* input = readline(prompt);
-
-        // Check for EOF.
-        if (!input)
-            break;
-
-        // Add input to readline history.
-        add_history(input);
-
-        // Process current input
-        process_input(shell, input);
-
-        // Free buffer that was allocated by readline
-        free(input);
-    }
-
-    // Free allocated buffer 
-    free(prompt);
-}
-
-void loop_without_readline(Shell* shell, int fd)
-{
-    char* prompt = NULL;
-    int prompt_cap = 0;
-    int input_cap = 512;
     int status = 0;
-    char* input = realloc(NULL, input_cap * sizeof(char));
     int atty = isatty(fd);
+    readline_fd = fd;
 
     while (1) {
         // Check background procs
@@ -317,29 +287,58 @@ void loop_without_readline(Shell* shell, int fd)
         // Display prompt and read input
         if (atty) {
             get_prompt(&prompt, &prompt_cap);
-            printf("%s", prompt);
-            fflush(stdout);
         }
         
         // Get input
-        int ok = read_input(fd, &input, &input_cap);
+        char* input = readline(prompt);
 
-        if (!ok) // EOF or ERROR
+        // Check for EOF or ERROR
+        if (!input)
             break;
+
+         // Add input to readline history
+        if (add_history) {
+            add_history(input);
+        }
 
         // Process current input
         status = process_input(shell, input);
+        // Free input
+        free(input);
 
+        // Check the command status and leave when QUIT_ON_ERR is specified
         if ((shell->options & QUIT_ON_ERR) && status != 0) {
-            // printf("Aborting ...\n");
             break;
         }
     }
 
+    if (add_history)
+        rl_clear_history();
+
     // Free allocated buffer
-    free(input);
     if (prompt)
         free(prompt);
+}
+
+int loop_interactive(Shell* shell)
+{
+    void* lib_readline = NULL;
+
+    if (shell->options & INTERACTIVE) {
+        lib_readline = dlopen("libreadline.so", RTLD_LAZY);
+        *(void**)(&rl_command_func) = dlsym(lib_readline, "rl_command_func");
+        *(void**)(&rl_bind_key) = dlsym(lib_readline, "rl_bind_key");
+        *(void**)(&rl_complete) = dlsym(lib_readline, "rl_complete");
+        *(void**)(&readline) = dlsym(lib_readline, "readline");
+        *(void**)(&add_history) = dlsym(lib_readline, "add_history");
+        *(void**)(&rl_clear_history) = dlsym(lib_readline, "rl_clear_history");
+    }
+
+    main_loop(shell, STDIN_FILENO);
+
+    if (lib_readline)
+        dlclose(lib_readline);
+    return 1;
 }
 
 int loop_file(Shell* shell, const char* filename)
@@ -349,26 +348,20 @@ int loop_file(Shell* shell, const char* filename)
     if (fd == -1)
         return 0;
 
-    loop_without_readline(shell, fd);
+    main_loop(shell, fd);
     close(fd);
     return 1;
 }
 
 void shell_loop(Shell* shell)
 {
+    // By default we use our readline
+    readline = my_readline;
+
     if (shell->scriptfile) {
         loop_file(shell, shell->scriptfile);
-    }else if (shell->options & INTERACTIVE) {
-        void* lib_readline = dlopen("libreadline.so", RTLD_LAZY);
-        *(void**)(&rl_command_func) = dlsym(lib_readline, "rl_command_func");
-        *(void**)(&rl_bind_key) = dlsym(lib_readline, "rl_bind_key");
-        *(void**)(&rl_complete) = dlsym(lib_readline, "rl_complete");
-        *(void**)(&readline) = dlsym(lib_readline, "readline");
-        *(void**)(&add_history) = dlsym(lib_readline, "add_history");
-        loop_interactive(shell);
-        dlclose(lib_readline);
     }else{
-        loop_without_readline(shell, STDIN_FILENO);
+        loop_interactive(shell);
     }
 }
 

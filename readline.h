@@ -10,5 +10,6 @@ extern int (*rl_bind_key)(int, rl_command_func_t*);
 extern int (*rl_complete)(int, int);
 extern char* (*readline)(const char*);
 extern void (*add_history)(const char*);
+extern void (*rl_clear_history)();
 
 #endif

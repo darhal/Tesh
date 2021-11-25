@@ -25,9 +25,9 @@ int process_input(Shell* shell, char* input);
 
 void destroy_shell(Shell* shell);
 
-void loop_interactive(Shell* shell);
+void main_loop(Shell* shell, int fd);
 
-void loop_without_readline(Shell* shell, int fd);
+int loop_interactive(Shell* shell);
 
 int loop_file(Shell* shell, const char* filename);
 
