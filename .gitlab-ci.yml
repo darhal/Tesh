@@ -3,3 +3,4 @@ tesh-tester: # do not modify this test
         script:
                 - apt-get update && apt-get -y install wget
                 - wget -O - https://members.loria.fr/lnussbaum/RS/tesh-tester | bash
+                - ./run_tests.bash

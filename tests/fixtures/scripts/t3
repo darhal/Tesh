@@ -1,0 +1,9 @@
+grep Donec < tests/fixtures/scripts/lorem | wc
+grep Donec < tests/fixtures/scripts/lorem | wc
+false && grep Donec < tests/fixtures/scripts/lorem | wc
+true && grep Donec < tests/fixtures/scripts/lorem | wc
+true || grep Donec < tests/fixtures/scripts/lorem | wc
+false || grep Donec < tests/fixtures/scripts/lorem | wc
+cat tests/fixtures/scripts/lorem | grep Donec | grep -n Donec
+cat tests/fixtures/scripts/lorem | md5sum
+echo hello!

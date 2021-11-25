@@ -105,6 +105,8 @@ int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractO
     pid_t child = -1;
     int* write_pipe = pipes[*cp];
     int* read_pipe  = pipes[(*cp + 1) % 2];
+    int prevIsPipe = prev && prev->op == PIPE;
+    int nextIsPipe = next && next->op == PIPE;
 
     if (curr->op & BUILTIN) {
         AbstractOp* arg = NULL;
@@ -116,9 +118,6 @@ int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractO
 
         return exec_builtin(shell, curr, arg);
     } else if (curr->op == COMMAND) {
-        int prevIsPipe = prev && prev->op == PIPE;
-        int nextIsPipe = next && next->op == PIPE;
-
         if (nextIsPipe) {
             pipe(write_pipe);
         }
@@ -126,7 +125,6 @@ int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractO
         child = fork();
 
         if (child == 0) {
-            // printf("(cp = %d) Next is : %d | prev is : %d\n", *cp, next ? next->op : -1, prev ? prev->op : -1);
             if (prevIsPipe) {
                 // Read from pipe
                 // printf("Reading from : %d\n", read_pipe[FD_READ]);
@@ -153,22 +151,16 @@ int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractO
         read_pipe[FD_READ] = write_pipe[FD_READ];
         close(write_pipe[FD_WRITE]);
         write_pipe[FD_WRITE] = 0;
-        // We need to store this here to make sure we close it after we close the read pipeline 
-        // otherwise the descriptors will overlap and it will cause a bug!
-        /*int write_fd = write_pipe[FD_WRITE];
-        close(read_pipe[FD_READ]);
-        close(read_pipe[FD_WRITE]);
-        *cp = (*cp + 1) % 2;
-        pipe(pipes[*cp]);
-        close(write_fd);*/
-        // printf("Already existinga fd  (cp = %d) : R: %d W: %d\n", *cp, pipes[*cp][FD_READ], pipes[*cp][FD_WRITE]);
-        // printf("[SWAPPING] (cp = %d) Next is : %d | prev is : %d\n", *cp, next ? next->op : -1, prev ? prev->op : -1);
     }
 
     if (child != -1) {
         int status = 0;
-        while (waitpid(child, &status, 0) != child) { }
-        status =  WEXITSTATUS(status);
+
+        if (!nextIsPipe || prevIsPipe) {
+            while (waitpid(child, &status, 0) != child) { }
+            status =  WEXITSTATUS(status);
+        }
+
         // printf("Child %d exited with code %d\n", child, status);
         return status;
     }
@@ -234,11 +226,13 @@ int pp_commands(Shell* shell, AbstractOp* cmds, int nb)
             pid_t child = fork();
 
             if (child == 0) {
+                usleep(5000);
                 int status = execute_commands(shell, curr->opsArr, curr->opsCount);
                 exit(status);
             }else{
-                add_bg_proc(shell, child);
                 printf("[%d]\n", child);
+                fflush(stdout);
+                add_bg_proc(shell, child);
             }
         }else{
             status = execute_commands(shell, curr->opsArr, curr->opsCount);

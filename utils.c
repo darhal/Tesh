@@ -17,15 +17,20 @@ int read_input(int fd, char** input, int* cap)
         }
 
         bytes_read = read(fd, *input + cursor, 1);
-        cursor += 1;
+        bytes_read = bytes_read < 0 ? 0 : bytes_read;
+        cursor += (bytes_read > 0) ? bytes_read : 0;
 
-        if ((bytes_read > 0) && ((*input)[cursor-1] == '\n'))
+        if ((bytes_read > 0) && ((*input)[cursor-1] == '\n')) {
             break;
+        }
     } while(bytes_read > 0);
 
-    // Force terminate the string
-    (*input)[cursor-1] = '\0';
-    return bytes_read > 0;
+    if (cursor) {
+        // Force terminate the string
+        (*input)[cursor - bytes_read] = '\0';
+    }
+
+    return cursor;
 }
 
 char* my_readline(const char* prompt)

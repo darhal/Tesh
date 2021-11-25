@@ -9,7 +9,7 @@
 
 void add_bg_proc(Shell* shell, pid_t pid)
 {
-    if (shell->count >= shell->capacity) {
+    if (!shell->count || shell->count > shell->capacity) {
         shell->capacity = (shell->capacity + 1) * 2;
         shell->background = realloc(shell->background, shell->capacity * sizeof(pid_t));
     }
@@ -47,6 +47,7 @@ int wait_bg_proc(Shell* shell, pid_t* pid)
 
             if (res == shell->background[i]) {
                 status =  WEXITSTATUS(status);
+                remove_bg_proc(shell, res);
                 return status;
             }
         }
