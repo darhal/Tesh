@@ -53,8 +53,8 @@ echo Expected output:
 echo ------------------------------------------------
 cat $te
 echo ------------------------------------------------
-mo=`md5sum < $to | awk '{print $1}'`
-me=`md5sum < $te | awk '{print $1}'`
+mo=`md10sum < $to | awk '{print $1}'`
+me=`md10sum < $te | awk '{print $1}'`
 test_nb=$((test_nb+1))
 if ! [ "$mo" = "$me" ]; then
   test_failed=$((test_failed+1))
@@ -86,8 +86,8 @@ echo 4
 ./tests/fixtures/echo 5
 echo 6
 EOF
-timeout 2s bash -c "./tesh < $ti" > $to 2>&1
-timeout 5s bash -c "`cat $ti`" > $te 2>&1
+timeout 5s bash -c "./tesh < $ti" > $to 2>&1
+timeout 10s bash -c "`cat $ti`" > $te 2>&1
 display $ti $to $te
 
 echo '######### Trying to test tesh with a more advanced script (commands chaining)'
@@ -114,8 +114,8 @@ cd d2.1
 pwd
 ls
 EOF
-timeout 2s bash -c "./tesh < $ti" > $to 2>&1
-timeout 5s bash -c "`cat $ti`" > $te 2>&1
+timeout 5s bash -c "./tesh < $ti" > $to 2>&1
+timeout 10s bash -c "`cat $ti`" > $te 2>&1
 display $ti $to $te
 
 echo '######### Trying to test tesh with a more advanced script (input/output redirections)'
@@ -134,18 +134,18 @@ cat ./tests/fixtures/redir/lorem-ipsum >> /tmp/TMPFILE
 echo sortie de echo
 cat /tmp/TMPFILE
 EOF
-timeout 2s bash -c "./tesh < $ti" > $to 2>&1
-timeout 5s bash -c "`cat $ti`" > $te 2>&1
+timeout 5s bash -c "./tesh < $ti" > $to 2>&1
+timeout 10s bash -c "`cat $ti`" > $te 2>&1
 display $ti $to $te
 
 echo '######### Trying to test tesh with a more advanced script 2 (Pipes)'
 cat <<-EOF > $ti 2>&1
 cat ./tests/fixtures/redir/lorem-ipsum-long | grep Duis
 cat ./tests/fixtures/redir/lorem-ipsum-long | grep am | grep Ut > /tmp/TMPFILE ; cat ./tests/fixtures/redir/lorem-ipsum-long | grep Lorem >> /tmp/TMPFILE ; tac < /tmp/TMPFILE
-cat ./tests/fixtures/redir/lorem-ipsum-very-long | md5sum
+cat ./tests/fixtures/redir/lorem-ipsum-very-long | md10sum
 EOF
-timeout 2s bash -c "./tesh < $ti" > $to 2>&1
-timeout 5s bash -c "`cat $ti`" > $te 2>&1
+timeout 5s bash -c "./tesh < $ti" > $to 2>&1
+timeout 10s bash -c "`cat $ti`" > $te 2>&1
 display $ti $to $te
 
 echo '######### Test du comportement de tesh -e'
@@ -155,8 +155,8 @@ echo b
 false
 echo c
 EOF
-timeout 2s bash -c "./tesh < $ti" > $to 2>&1
-timeout 5s bash -c "`cat $ti`" > $te 2>&1
+timeout 5s bash -c "./tesh < $ti" > $to 2>&1
+timeout 10s bash -c "`cat $ti`" > $te 2>&1
 display $ti $to $te
 
 echo '######### Test du comportement de tesh avec root ()'
@@ -164,40 +164,40 @@ cat <<-EOF > $ti 2>&1
 echo foo
 echo bar
 EOF
-timeout 2s bash -c "./tesh < $ti" > $to 2>&1
-timeout 5s bash -c "`cat $ti`" > $te 2>&1
+timeout 5s bash -c "./tesh < $ti" > $to 2>&1
+timeout 10s bash -c "`cat $ti`" > $te 2>&1
 display $ti $to $te
 
 echo '######### Test du comportement des script t1'
 cat <<-EOF > $ti 2>&1
 Testing with script t1
 EOF
-timeout 2s bash -c "./tesh ./tests/fixtures/scripts/t1" > $to 2>&1
-timeout 5s bash -c "bash -c ./tests/fixtures/scripts/t1" > $te 2>&1
+timeout 5s bash -c "./tesh ./tests/fixtures/scripts/t1" > $to 2>&1
+timeout 10s bash -c "bash -c ./tests/fixtures/scripts/t1" > $te 2>&1
 display $ti $to $te
 
 echo '######### Test du comportement des script t2'
 cat <<-EOF > $ti 2>&1
 Testing with script t2
 EOF
-timeout 2s bash -c "./tesh ./tests/fixtures/scripts/t2" > $to 2>&1
-timeout 5s bash -c "bash -c ./tests/fixtures/scripts/t2" > $te 2>&1
+timeout 5s bash -c "./tesh ./tests/fixtures/scripts/t2" > $to 2>&1
+timeout 10s bash -c "bash -c ./tests/fixtures/scripts/t2" > $te 2>&1
 display $ti $to $te
 
 echo '######### Test du comportement des script t3'
 cat <<-EOF > $ti 2>&1
 Testing with script t3
 EOF
-timeout 2s bash -c "./tesh ./tests/fixtures/scripts/t3" > $to 2>&1
-timeout 5s bash -c "bash -c ./tests/fixtures/scripts/t3" > $te 2>&1
+timeout 5s bash -c "./tesh ./tests/fixtures/scripts/t3" > $to 2>&1
+timeout 10s bash -c "bash -c ./tests/fixtures/scripts/t3" > $te 2>&1
 display $ti $to $te
 
 echo '######### Test du comportement des script t1 (with -e)'
 cat <<-EOF > $ti 2>&1
 Testing with script t1
 EOF
-timeout 2s bash -c "./tesh -e ./tests/fixtures/scripts/t1" > $to 2>&1
-timeout 5s bash -c "bash -e ./tests/fixtures/scripts/t1" > $te 2>&1
+timeout 5s bash -c "./tesh -e ./tests/fixtures/scripts/t1" > $to 2>&1
+timeout 10s bash -c "bash -e ./tests/fixtures/scripts/t1" > $te 2>&1
 display $ti $to $te
 
 echo '######### Test du comportement des script t2 (with -e)'
@@ -208,7 +208,7 @@ cat <<-EOF > $te 2>&1
 a
 b
 EOF
-timeout 2s bash -c "./tesh -e ./tests/fixtures/scripts/t2" > $to 2>&1
+timeout 5s bash -c "./tesh -e ./tests/fixtures/scripts/t2" > $to 2>&1
 display $ti $to $te
 
 echo '######### Test du comportement des script t3 (with -e)'
@@ -219,7 +219,7 @@ cat <<-EOF > $te 2>&1
       2      15     104
       2      15     104
 EOF
-timeout 2s bash -c "./tesh -e ./tests/fixtures/scripts/t3" > $to 2>&1
+timeout 5s bash -c "./tesh -e ./tests/fixtures/scripts/t3" > $to 2>&1
 display $ti $to $te
 
 # disable Electric Fence
