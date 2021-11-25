@@ -4,5 +4,6 @@ tesh-tester: # do not modify this test
                 - apt-get update && apt-get -y install wget
                 - wget -O - https://members.loria.fr/lnussbaum/RS/tesh-tester | bash
         image: ubuntu:latest
+        script:
                 - chmod u+x ./run_tests.bash
                 - ./run_tests.bash
