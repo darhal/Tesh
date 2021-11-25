@@ -13,8 +13,8 @@ if [ ! -f rapport.pdf ]; then
 fi
 
 echo '######### Installing dependencies'
-sudo apt-get update
-sudo apt-get -y install --no-install-recommends build-essential libreadline-dev electric-fence
+apt-get update
+apt-get -y install --no-install-recommends build-essential libreadline-dev electric-fence sudo
 
 echo '######### Trying to build'
 rm -f tesh # in case it was committed
