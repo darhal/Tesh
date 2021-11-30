@@ -13,11 +13,12 @@ void get_prompt(char** prompt, int* cap);
 
 int exec_builtin(Shell* shell, AbstractOp* cmd, AbstractOp* next);
 
-int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractOp* next, int pipes[2][2], int* cp, int* progress);
+int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractOp* next, 
+                    int* pipes, pid_t* pids, int* pcount, int* progress, int sfork);
 
 int exec_compound_cmd(Shell* shell, AbstractOp* cmd);
 
-int execute_commands(Shell* shell, AbstractOp* cmds, int nb);
+int execute_commands(Shell* shell, AbstractOp* cmds, int nb, int sfork);
 
 int pp_commands(Shell* shell, AbstractOp* cmds, int nb);
 

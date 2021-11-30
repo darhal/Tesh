@@ -95,18 +95,19 @@ int exec_compound_cmd(Shell* shell, AbstractOp* cmd)
             fprintf(stderr, "The given command '%s' is invalid\n", prog_cmd->token[0]);
             exit(code);
         }
+    }else{
+        exit(-1);
     }
 
     return code;
 }
 
-int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractOp* next, int pipes[2][2], int* cp, int* progress)
+int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractOp* next, 
+                    int* pipes, pid_t* pids, int* pcount, int* progress, int sfork)
 {
     pid_t child = -1;
-    int* write_pipe = pipes[*cp];
-    int* read_pipe  = pipes[(*cp + 1) % 2];
-    int prevIsPipe = prev && prev->op == PIPE;
-    int nextIsPipe = next && next->op == PIPE;
+    int prevIsPipe  = prev && prev->op == PIPE;
+    int nextIsPipe  = next && next->op == PIPE;
 
     if (curr->op & BUILTIN) {
         AbstractOp* arg = NULL;
@@ -118,14 +119,18 @@ int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractO
 
         return exec_builtin(shell, curr, arg);
     } else if (curr->op == COMMAND) {
+        int cpi = *pcount;
+        int* write_pipe = &pipes[cpi * 2];
+        int* read_pipe  = (cpi - 1) >= 0 ? &pipes[(cpi - 1) * 2] : NULL;
+
         if (nextIsPipe) {
             pipe(write_pipe);
         }
-
-        child = fork();
-
+        
+        child = sfork ? fork() : 0;
+        
         if (child == 0) {
-            if (prevIsPipe) {
+            if (prevIsPipe && read_pipe) {
                 // Read from pipe
                 // printf("Reading from : %d\n", read_pipe[FD_READ]);
                 close(read_pipe[FD_WRITE]);
@@ -142,23 +147,35 @@ int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractO
             }
 
             return exec_compound_cmd(shell, curr);
+        }else if (child > 0 && nextIsPipe) {
+            pids[cpi] = child;
+            close(pipes[*pcount * 2 + FD_WRITE]);
         }
     }else if (curr->op == PIPE) {
-        if (read_pipe[FD_READ]) {
-            close(read_pipe[FD_READ]);
-        }
-
-        read_pipe[FD_READ] = write_pipe[FD_READ];
-        close(write_pipe[FD_WRITE]);
-        write_pipe[FD_WRITE] = 0;
+        // close(pipes[*pcount * 2 + FD_WRITE]);
+        (*pcount)++;
     }
 
     if (child != -1) {
         int status = 0;
 
-        if (!nextIsPipe || prevIsPipe) {
-            while (waitpid(child, &status, 0) != child) { }
-            status =  WEXITSTATUS(status);
+        if (!nextIsPipe) {
+            if (*pcount != 0) {
+                for (int i = 0; i < *pcount; i++) {
+                    close(pipes[i * 2 + FD_READ]);
+                    // close(pipes[i * 2 + FD_WRITE]);
+                }
+
+                for (int i = 0; i < *pcount; i++) {
+                    while (waitpid(pids[i], &status, 0) != pids[i]) { }
+                    status = status || WEXITSTATUS(status);
+                }
+
+                *pcount = 0;
+            }else{
+                while (waitpid(child, &status, 0) != child) { }
+                status =  WEXITSTATUS(status);
+            }
         }
 
         // printf("Child %d exited with code %d\n", child, status);
@@ -168,13 +185,12 @@ int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractO
     return 0;
 }
 
-int execute_commands(Shell* shell, AbstractOp* cmds, int nb)
+int execute_commands(Shell* shell, AbstractOp* cmds, int nb, int sfork)
 {
     int status = 0;
-    int current_pipe = 0;
-    int pipes[2][2] = {{0, 0}, {0, 0}};
-    // pipe(pipes[0]);
-    // pipe(pipes[1]);
+    int pcount = 0;
+    int* pipes = calloc(nb * 2, 2 * sizeof(int));
+    pid_t* pids = calloc(nb * 2, sizeof(pid_t));
     int i = 0;
 
     for (; i < nb; i++) {
@@ -182,30 +198,18 @@ int execute_commands(Shell* shell, AbstractOp* cmds, int nb)
         AbstractOp* prev = lla_prev(cmds, i, nb);
         AbstractOp* next = lla_next(cmds, i, nb);
         int is_succ = status == 0;
-        int continue_exec = (!(curr->op & AND_OR) || (curr->op == AND && is_succ) || (curr->op == OR && !is_succ));
+        int continue_exec = !(curr->op & AND_OR) || (curr->op == AND && is_succ) || (curr->op == OR && !is_succ);
 
         if (continue_exec) {
             // printf("Executing : "); print_command_tokens(curr); printf("\n");
-            status = exec_command_gen(shell, curr, prev, next, pipes, &current_pipe, &i);
+            status = exec_command_gen(shell, curr, prev, next, pipes, pids, &pcount, &i, 1);
         }else{
             i = fast_forward(cmds, i, nb, AND_OR | SEMICOLON);
         }
-
-        // printf("[LOOP] fd (cp = %d) : R: %d W: %d\n", 0, pipes[0][FD_READ], pipes[0][FD_WRITE]);
-        // printf("[LOOP] fd (cp = %d) : R: %d W: %d\n", 1, pipes[1][FD_READ], pipes[1][FD_WRITE]);
     }
 
-    
-    if (pipes[0][FD_WRITE])
-        close(pipes[0][FD_WRITE]);
-
-    if (pipes[0][FD_READ])
-        close(pipes[0][FD_READ]);
-    
-    if (pipes[1][FD_READ])
-        close(pipes[1][FD_READ]);
-
-    // close(pipes[1][FD_WRITE]); // Not needed
+    free(pipes);
+    free(pids);
     return status;
 }
 
@@ -222,7 +226,9 @@ int pp_commands(Shell* shell, AbstractOp* cmds, int nb)
             return status;
         }
         
-        if (prun) {
+        if (curr->op & HCTRL_FLOW){
+            continue;
+        }else if (prun) {
             pid_t child = fork();
 
             if (child > 0) {
@@ -230,15 +236,15 @@ int pp_commands(Shell* shell, AbstractOp* cmds, int nb)
                 fflush(stdout);
                 add_bg_proc(shell, child);
             }else if (child == 0) {
+                // printf("Executing parallel : "); print_command_tokens(curr); printf("\n");
                 usleep(5000);
-                int status = execute_commands(shell, curr->opsArr, curr->opsCount);
+                int status = execute_commands(shell, curr->opsArr, curr->opsCount, curr->opsCount > 1);
                 exit(status);
             }
         }else{
-            status = execute_commands(shell, curr->opsArr, curr->opsCount);
+            // printf("Executing serial : "); print_command_tokens(curr); printf("\n");
+            status = execute_commands(shell, curr->opsArr, curr->opsCount, 1);
         }
-
-        // print_command_tokens(curr); printf("\n");
     }
 
     return status;
