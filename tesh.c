@@ -9,6 +9,8 @@
 #include "tesh.h"
 #include "readline.h"
 
+#define NEW_APPROACH
+
 void get_prompt(char** prompt, int* cap)
 {
     char hostname[1024];
@@ -108,6 +110,13 @@ int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractO
     pid_t child = -1;
     int prevIsPipe  = prev && prev->op == PIPE;
     int nextIsPipe  = next && next->op == PIPE;
+#if defined(NEW_APPROACH)
+    int cpi = *pcount;
+#else
+    int cpi = 1;
+#endif
+    int* write_pipe = &pipes[cpi * 2];
+    int* read_pipe  = (cpi - 1) >= 0 ? &pipes[(cpi - 1) * 2] : NULL;
 
     if (curr->op & BUILTIN) {
         AbstractOp* arg = NULL;
@@ -119,10 +128,6 @@ int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractO
 
         return exec_builtin(shell, curr, arg);
     } else if (curr->op == COMMAND) {
-        int cpi = *pcount;
-        int* write_pipe = &pipes[cpi * 2];
-        int* read_pipe  = (cpi - 1) >= 0 ? &pipes[(cpi - 1) * 2] : NULL;
-
         if (nextIsPipe) {
             pipe(write_pipe);
         }
@@ -132,7 +137,6 @@ int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractO
         if (child == 0) {
             if (prevIsPipe && read_pipe) {
                 // Read from pipe
-                // printf("Reading from : %d\n", read_pipe[FD_READ]);
                 close(read_pipe[FD_WRITE]);
                 assert(dup2(read_pipe[FD_READ], STDIN_FILENO) != -1);
                 close(read_pipe[FD_READ]);
@@ -140,7 +144,6 @@ int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractO
 
             if (nextIsPipe) {
                 // Write to pipe
-                // printf("Writting to : %d\n", write_pipe[FD_WRITE]);
                 close(write_pipe[FD_READ]);
                 assert(dup2(write_pipe[FD_WRITE], STDOUT_FILENO) != -1);
                 close(write_pipe[FD_WRITE]);
@@ -148,25 +151,34 @@ int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractO
 
             return exec_compound_cmd(shell, curr);
         }else if (child > 0 && nextIsPipe) {
-            pids[cpi] = child;
-            close(pipes[*pcount * 2 + FD_WRITE]);
+            pids[*pcount] = child;
+            // usleep(1000);
+#if defined(NEW_APPROACH)
+            // close(pipes[*pcount * 2 + FD_WRITE]);
+            // (*pcount)++;
+#endif
         }
     }else if (curr->op == PIPE) {
-        // close(pipes[*pcount * 2 + FD_WRITE]);
+#if defined(NEW_APPROACH)
+        close(pipes[*pcount * 2 + FD_WRITE]);
         (*pcount)++;
+#else 
+        if (read_pipe[FD_READ]) {
+            close(read_pipe[FD_READ]);
+        }
+        read_pipe[FD_READ] = write_pipe[FD_READ];
+        close(write_pipe[FD_WRITE]);
+        write_pipe[FD_WRITE] = 0;
+#endif
     }
 
     if (child != -1) {
         int status = 0;
-
+#if defined(NEW_APPROACH)
         if (!nextIsPipe) {
             if (*pcount != 0) {
                 for (int i = 0; i < *pcount; i++) {
                     close(pipes[i * 2 + FD_READ]);
-                    // close(pipes[i * 2 + FD_WRITE]);
-                }
-
-                for (int i = 0; i < *pcount; i++) {
                     while (waitpid(pids[i], &status, 0) != pids[i]) { }
                     status = status || WEXITSTATUS(status);
                 }
@@ -177,7 +189,12 @@ int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractO
                 status =  WEXITSTATUS(status);
             }
         }
-
+#else
+        if (!nextIsPipe || prevIsPipe) {
+            while (waitpid(child, &status, 0) != child) { }
+            status =  WEXITSTATUS(status);
+        }
+#endif
         // printf("Child %d exited with code %d\n", child, status);
         return status;
     }
@@ -207,6 +224,15 @@ int execute_commands(Shell* shell, AbstractOp* cmds, int nb, int sfork)
             i = fast_forward(cmds, i, nb, AND_OR | SEMICOLON);
         }
     }
+
+#if !defined(NEW_APPROACH)
+    if (pipes[0 + FD_WRITE])
+        close(pipes[0 + FD_WRITE]);
+    if (pipes[0 + FD_READ])
+        close(pipes[0 + FD_READ]);
+    if (pipes[1 * 2 + FD_READ])
+        close(pipes[1 * 2 + FD_READ]);
+#endif
 
     free(pipes);
     free(pids);
