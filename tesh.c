@@ -9,7 +9,7 @@
 #include "tesh.h"
 #include "readline.h"
 
-#define NEW_APPROACH
+// #define NEW_APPROACH
 
 void get_prompt(char** prompt, int* cap)
 {
@@ -230,6 +230,8 @@ int execute_commands(Shell* shell, AbstractOp* cmds, int nb, int sfork)
         close(pipes[0 + FD_WRITE]);
     if (pipes[0 + FD_READ])
         close(pipes[0 + FD_READ]);
+    if (pipes[1 * 2 + FD_WRITE])
+        close(pipes[1 * 2 + FD_WRITE]);
     if (pipes[1 * 2 + FD_READ])
         close(pipes[1 * 2 + FD_READ]);
 #endif
