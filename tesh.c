@@ -160,7 +160,7 @@ int exec_command_gen(Shell* shell, AbstractOp* curr, AbstractOp* prev, AbstractO
         }
     }else if (curr->op == PIPE) {
 #if defined(NEW_APPROACH)
-        close(pipes[*pcount * 2 + FD_WRITE]);
+        close(write_pipe[FD_WRITE]);
         (*pcount)++;
 #else 
         if (read_pipe[FD_READ]) {

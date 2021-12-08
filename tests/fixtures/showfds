@@ -1,0 +1,3 @@
+#!/bin/bash
+lsof -p $$ -a -d 0-256 | tail -n +2 | sed -e 's/\/tmp\/tesh_test\.[a-zA-Z]\+\.[a-zA-Z0-9]\+/pipe/g' -e 's/\/dev\/pts\/[0-9]/pipe/g' | awk '{printf("%s->%s\n", $4+0, $NF) }'
+exec $@

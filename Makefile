@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall
+CFLAGS=-Wall -fsanitize=undefined
 SRC=$(wildcard *.c)
 LIBS=-ldl
 
