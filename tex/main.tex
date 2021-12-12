@@ -1,0 +1,324 @@
+\documentclass[12pt]{article}
+\usepackage{natbib}
+\usepackage[english, french]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{tikz}
+\usepackage{amsmath}
+\usepackage{textcomp}
+\usepackage{graphics}
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{psfrag}
+\usepackage{fancyhdr}
+\usepackage{vmargin}
+%\usepackage[backend=biber]{biblatex}
+\usepackage{csquotes}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
+\usepackage[justification=centering]{caption}
+\usepackage{array,multirow,graphicx}
+\usepackage{float}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{ifthen}
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage{listings}
+%\usepackage[nottoc, notlof, notlot]{tocbibind}
+\def\rot#1{\rotatebox{90}{#1}}
+\DeclarePairedDelimiter\ceil{\lceil}{\rceil}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+
+%\titleformat{\chapter}[display]{\normalfont\bfseries}{}{0pt}{\Huge}\titlespacing*{\chapter}{0pt}{-50pt}{17pt}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codemauve}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.99,0.99,0.99}
+
+\lstdefinestyle{codestyle}{
+	backgroundcolor=\color{backcolour},   
+	commentstyle=\color{codegreen},
+	keywordstyle=\color{blue},
+	numberstyle=\tiny\color{codegray},
+	stringstyle=\color{codemauve},
+	basicstyle=\ttfamily\footnotesize,
+	breakatwhitespace=false,         
+	breaklines=true,                 
+	captionpos=b,                    
+	keepspaces=true,                 
+	numbers=left,                    
+	numbersep=5pt,                  
+	showspaces=false,                
+	showstringspaces=false,
+	showtabs=false,                  
+	tabsize=2
+}
+\lstset{style=codestyle}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\setmarginsrb{2 cm}{1.5 cm}{2 cm}{1.5 cm}{0.51 cm}{1 cm}{0.5 cm}{1 cm}
+\setlength{\parindent}{1cm}
+
+\title{TELECOM Shell - Tesh 2021} %
+\author{Omar et Chaima}
+\date{Octobre 2021}
+
+\makeatletter
+\let\thetitle\@title
+  \let\theauthor\@author
+\let\thedate\@date
+\makeatother
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\theauthor}
+\lhead{\thetitle}
+\cfoot{\thepage}
+
+\begin{document}
+
+\begin{titlepage}
+
+\centering
+    
+ 	\includegraphics[scale=0.36]{Images/logo_TN_horizontal.png}\\[1.0 cm]
+ 	
+	\textsc{\LARGE TELECOM Nancy}\\[1.5 cm]
+	\textsc{\Large Rapport du Projet Système}\\[0.5 cm]
+	{\large October-Décember 2021}\\[0.5 cm]
+	\rule{\linewidth}{0.2 mm} \\[0.5 cm]
+	{ \huge \bfseries \thetitle}\\[0.2 cm]
+	\rule{\linewidth}{0.2 mm} \\[1.5 cm]
+	%\textsc{\large Groupe 17}\\[1.0 cm]
+	
+	\begin{minipage}{0.45\textwidth}
+		\begin{flushleft} \large
+		\emph{Étudiants:}\\
+			Omar CHIDA                  ( G4 )\\
+			Chaima TOUNSI OMEZZINE (G3)
+		\end{flushleft}
+	\end{minipage}~
+	\begin{minipage}{0.4\textwidth}
+		\begin{flushright} \large
+		\emph{Numéro Étudiant:}\\
+			31730598 \\
+			32025001 
+		\end{flushright}
+	\end{minipage}\\[1.4 cm]
+	
+	\large
+	\emph{Encadrant du projet :}\\
+	   Lucas Nussbaum\\[1.5 cm]
+
+	\includegraphics[scale=0.12]{Images/logo_UL_horizontal.png}\\[1.5 cm]
+
+	\vfill
+\end{titlepage}
+
+\newpage
+
+\tableofcontents
+
+\newpage
+
+
+
+% \section*{Introduction} 
+%     \addcontentsline{toc}{section}{Introduction}
+  
+% \newpage
+
+
+\section{Choix de conception} 
+
+\subsection{Conception}
+Après la lecture du sujet, nous avons commencé par mettre en place notre stratégie d'implémentation. Nous avons divisé le sujet en différentes petites tâches et nous avons fait le lien entre eux avec une priorisation des tâches les plus génériques. Globalement, nous avons suivi la ligne directrice proposée par l'énoncé. Nous avons également établi une stratégie des différentes méthodes (\textit{fork, pipe, read, write,...}) à utiliser et dans quelle fonctionnalité.
+
+De manière globale, nous avons adopté une méthode d'échange régulier. Avant chaque partie à implementer, nous discutions et nous nous mettions d'accord sur le choix de l'implementation (structures de données, la méthode à mettre en place...). Nous avons consacré également de temps d'implémentation commune (généralement en distanciel) que nous avons jugé nécessaire pour certaines parties délicates du sujet (traitement des lignes d'entrée \textit{"Parsing"}, les pipes, les priorités entre les opérateurs comme \&\&, ||,...). Cela a permis également à chacun de mieux comprendre toutes les parties implémentées.
+
+\subsection{Architecture et Implémentation}
+Dès le début du projet, nous avons décidé d'adopter une architecture solide et claire afin de générer du code lisible et compréhensible. Ceçi facilite également les modifications que nous pourrons avoir au futur. 
+Ainsi pour l'architecture globale de notre projet, nous avons adopté une variété du pattern/architecture \texttt{Pipeline}\footnote{La sortie d'une phase est l'entrée de la phase suivante}. La saisie des entrés de la part de l'utilisateur \textit{"Input"} ou le fichier du \textit{script} sont lu ligne par ligne avant d'être traités et regroupés dans des différents \textit{tokens} en fonction de la priorité de l'opérateur actuel.
+Chaque segment (déterminé par \texttt{\&} ou \texttt{;}) est donc exécuté séquentiellement. Pour les commandes en arrière plan, un nouveau processus est créé pour exécuter la commande entière independamment du processus principal.
+
+%Since the beginning we have decided to adopt a solid architecture for project that improve code readability, facilitates changes and improvements. 
+%We have adopted a variation of the pipeline pattern as a global architecture for the project. User input or script files are read line by line then parsed and grouped into different tokens depending the precedence of the present operators. Each segment (determined by \texttt{\&} and \texttt{;}) is therefor executed sequentially. For background commands a new process is created to execute the whole command independently.
+
+\subsubsection{Représentations et termes utilisés}
+Pour avoir une bonne compréhension entre les membre de l'équipe, nous avons adopté des termes spécifiques non officiels pour identifier certaines parties des commandes entrées. Cela simplifie beaucoup le problème, facilite la communication et améliore la lisibilité et la compréhension du code.
+%To have a clear understanding between the team members, we have adopted some unofficial terms to identify certain parts of the command decomposition. This greatly simplifies  the problem, ease communication and improve code readability and understanding.
+
+\begin{itemize}
+    \item \textit{Operators} : Les Operators sont les mot-clés du shell comme (\texttt{\&\&} : and, \texttt{||} : or, \texttt{|} : pipe, \texttt{;} : séparateur de commandes et les redirections) 
+    %Operators are shell 'keywords' like (\&\& -> and, || -> or, | -> pipe, ; -> command separator, and redirections)
+    \item \textit{High level control flow operators} :  Ils sont appelés "haut niveau" car ils ont une priorité plus élevée que les autres opérateurs (\texttt{\&} pour l'exécution en arrière-plan et \texttt{;} pour le séparateur de commandes)
+    %They are called high level because they have higher precedence than other operators (\& for background  execution and ; for command separator)
+    \item \textit{Control flow operators} : Ce sont les opérateurs les plus courants comme les \texttt{pipes, and, or}
+    %These are the most common operators like pipes, and, or
+    \item \textit{Redirections} : Ceux-ci ont la priorité la plus basse (>{}>, > et <)
+    %These have the lowest precedence (>{}>, > and <)
+    \item \textit{Text} : C'est une séquence de caractères qui n'ont pas d'opérateur spécifique.
+    %What we call a text is a sequence of characters that have no specific operator
+    \item \textit{Builtin commands} : Ce sont les commandes spéciales exécutées par le shell sans la création d'un nouveau processus. 
+    % Builtin commands are special commands execution by the shell without creating a new process
+    \item \textit{Compound commands} : Ce sont des commandes qui peuvent ou non contenir des opérateurs de redirection.
+    %These are commands that may or may not contain redirection operators
+\end{itemize}
+
+Pour faciliter l'opération d'analyse, un tableau contenant des chaines de \textit{tokens} a été déclaré dans \texttt{common.c}. Une énumération appelée \texttt{BUILTIN\_TOKENS} a été déclarée également dans \texttt{common.h}. Les valeurs constantes de l'énumération sont de nombres binaires dont le \textit{i}-ème bit est mis à 1 de sorte que \textit{i} correspond à l'index du \textit{token} dans le tableau des \textit{Tokens}. Cette représentation binaire offre une grande flexibilité car les \textit{Tokens} peuvent être regroupés à l'aide de l'opérateur \texttt{ou} binaire et testés à l'aide de l'opérateur \texttt{and} binaire.
+
+%To make the parse operation easier, an array that contain token strings has been declared in \texttt{common.c}. An enum called \texttt{BUILTIN\_TOKENS} has been declared in \texttt{common.h}. Enum constant values are binary number that have their \textit{i}th bit set so that \textit{i} correspond to the index of the token in the array of tokens. This binary representation provides great flexibility as tokens can be grouped together using the bitwise or operator and tested with the help of the bitwise and operator. 
+
+
+Cette présentation a fait preuve de robustesse car, au cours de la toute dernière étape du développement, nous avons découvert un bug\footnote{Au départ, nous avons pensé que la priorité de \texttt{\&} est plus imporante que \texttt{;}. Cela signifie que \texttt{cmd1 ; cmd2 \&} executerait \texttt{cmd1} et \texttt{cmd2} séquentiellement en arrière-plan. Cependant, \textit{bash} exécute \texttt{cmd1} dans le plan principal et \texttt{cmd2} en arrière-plan} dans la priorité de \texttt{;} (command separator). Mais grâce à l'architecture adoptée, la correction de ce bug consistait juste à faire une ou deux petites modifications (déplacer une constante d'enum qui représente le séparateur '\textbf{;}').
+
+%This presentation proved solid as we discovered a bug in the precedence of the \textit{;} (command separator) during the very late stage of development \footnote{Initially we thought that \texttt{\&} precedence is higher than \texttt{;}. Meaning that \texttt{cmd1 ; cmd2 \&} would execute \texttt{cmd1} and \texttt{cmd2} sequentially in the background. However \textit{bash} execute \texttt{cmd1} in foreground and \texttt{cmd2} in background}. Thanks to the architecture we have adopted, fixing this bug consisted in just making one two tiny changes (moving an enum constant that represents the semicolon arround).
+
+\subsubsection{Parsing: Traitement des entrées} 
+Initialement, l'entré est divisée en fonction des espaces. Simultanément\footnote{Dans la même boucle}, elle est analysée en différents \textit{tokens} en fonction du symbole/opérateur. Une structure de donnée hybride spéciale que nous avons appelée \texttt{AbstractOp} est utilisée. Elle agit essentiellement comme un arbre ou une hiérarchie de tableaux qui nous aidera à représenter la priorité des différents opérateurs.
+
+%Initially the input is split according to spaces. Simultaneously\footnote{In the same loop}, it gets parsed into different tokens depending on the encountered symbol/operators. A special hybrid data structure that we have called \texttt{AbstractOp} is being used. It essentially acts like a tree or a hierarchy of arrays which will helps us represents different operators precedence.
+
+\begin{lstlisting}[language=C]
+struct _AbstractOp
+{
+    char** token; // Array containing the string associated with this node
+    int    count; // Count of strings
+    int    op;    // The parsed operator
+    struct _AbstractOp* opsArr; // Operators array that are one level below the current node in precedence
+    int opsCount; // Nodes count
+    int opsCap;   // Nodes capacity
+};
+\end{lstlisting}
+
+Comme indiqué dans l'extrait du code ci-dessus, chaque commande analysée est représentée en utlisant cette structure de données qui contient toutes les informations nécessaires pour l'exécution.
+
+%As shown in the listing above every command is parsed to this data structure which contains all the necessary information for execution.
+
+\begin{itemize}
+    \item Le tableau des \textit{tokens} représente la liste des chaines liées au noeud courant.
+    \item L' \texttt{op} est un identificateur entier qui représente la nature actuelle du noeud. Il peut s'agir d'un opérateur, commande simple ou commande composée (Il prend une des valeurs de l'enum \texttt{BUILTIN\_TOKENS} définies dans la sous section précédente).
+    \item L' \texttt{opsArr} est un tableau de noeuds similaires qui inclue des éléments de la hiérarchie inférieure.
+    \item \texttt{opsCount} et \texttt{opsCap} représentent respectivement le nombre d'élements du tableau et sa capacité maximale. Ceux-ci sont pratiques pour savoir quand réallouer le tableau\footnote{La réallocation du tableau est faite en complexité amortie}.
+\end{itemize}
+
+% \begin{itemize}
+%     \item The \texttt{token} array represents the list of strings related to the current node.
+%     \item The \texttt{op}  is an integer ID that represents the current node nature. It could be an operator, command or compound command.
+%     \item The \texttt{opsArr} is an array of similar nodes that include elements of the lower hierarchy
+%     \item \texttt{opsCount} and The \texttt{opsCap} represent respectively the number of the elements in the array and it's maximum capacity. These are handy to know when to reallocate the array \footnote{Array reallocation is done in amortized complexity all thought the project}.
+% \end{itemize}
+
+Lors de l'analyse, le champ \texttt{op} est initialisé en fonction du \textit{token} rencontré.
+%During parsing the \texttt{op} field is initialized according to the encountered token.
+
+\subsubsection{L'exécution des commandes}
+La phase d'anlayse produit le format de données nécessaire qui simplifie la partie exécution de la commande. A chaque niveau de la struture de données, mentionnée précedement, nous parcourons son tableau d'opérateurs en commençant par les tableaux de haut niveau qui contient les opérateurs d'arrière-plan et les séparateurs de commande. A ce stade, il est décidé si la commande doit être exécutée en parallèle ou executée de manière séquentielle dans le shell.
+%The parsing phase produces the necessary data format that makes the command execution part straightforward. On each level of the previously mentioned data structure we loop through its ops array. Starting from background processes and command separator. At this stage it is decided wether the command should be running in parallel or executed sequentially on the shell.
+
+Le tableau d'opérateurs (\texttt{opsArray}) de la commande précédente est ensuite passé à la phase suivante lorsqu'il est décomposé davantage en parcourant ses éléments recherchant d'autres opérateurs ( comme \texttt{\&\&}, \texttt{||}, \texttt{|}, etc à l'exception des opérateurs de redirection). C'est à ce stade que sont manipulés les opérateurs "\texttt{and}", "\texttt{or}", et "\texttt{pipe}". Les pipes sont créés uniquement lorsque l'opérateur suivant dans le tableau est un pipe. La lecture à partir des pipes se réalise lorsque l'opérateur précédent dans le tableau est un pipe. L'algorithme de lecture consiste à permuter l'ancien descripteur de fichier de lecture du pipe après l'avoir fermé avec l'ancien descripteur de fichier de lecture de pipe.
+%The operators array (\texttt{opsArray}) of the previous command is then passed to the next phase when it's decomposed further by looping through its elements checking for other operators (like \texttt{\&\&}, \texttt{||}, \texttt{|}, etc except redirection operators). It's is at this stage that and, or and pipes operators are handled. Pipes are created only when the next operator in the array is a pipe. Reading from a pipe occurs when the previous operator in the array is a pipe. The algorithm of reading consists of swapping the old pipe read file descriptor after closing it with he previous pipe read file descriptor.
+
+Enfin les données de commande atteindront l'étape de traitement finale où les opérateurs de redirection sont détectés. Selon, l'opérateur de redirection un fichier sera créé et \texttt{dup2} sera appelé pour rediriger le descripteur de fichier à l'entrée ou à la sortie standard avant que \texttt{execvp} ne soit appelé.
+%Finally the command data will reach the final processing stage where redirection operators are detected. Depending the redirection operation a file will be created and \texttt{dup2} will be called mapping the file descriptor to either the standard input or output before \texttt{execvp} is called.
+
+\subsubsection{Structure du dépot/projet}
+Notre dépot git est organisé en différents dossiers et les fichiers ont chacun son propre spécificité comme expliqué ci-dessous:
+%Our repository was organised into different folders and files each have their own utility :
+
+\begin{itemize}
+    \item \textbf{tests} : Un dossier, contient les fichiers, dossiers et scripts nécessaires pour simuler les tests blancs fournis par le professeur.
+    %A folder, contains the necessary files, folders and scripts to simulate the white tests provided by the professor.
+    \item \textbf{rapport} : Un dossier contenant le fichiers \LaTeX~pour le rapport du projet.
+    %A folder containing the \LaTeX files for the project report.
+    \item \textbf{run\_tests} : Est un script bash qui lance une simulation de tests blancs et compare la sortie de notre programme directement à la sortie de bash.
+    %Is a bash script that launches a simulation of white tests and compare our programs output directly to bash's output.
+    \item \textbf{Makefile} : utilisé pour compiler correctement et facilement \texttt{tesh}
+    %Used to correctly compile \texttt{tesh}
+    \item \textbf{common.h/c} : Contient des énumérations de \textit{Tokens}, un tableau de \textit{Tokens}, une énumération d'options et la structure \texttt{Shell} qui encapsule toutes les données liées à la session shell.
+    %Contains token enums, tokens array, options enum and \texttt{Shell} struct which encapsulates all data related to the shell session.
+    \item \textbf{readline.h/c} : Inclut les signatures de fonctions et les initialisations liées à \texttt{libreadline.so}
+    %Include function signatures and intilization related to \texttt{libreadline.so}
+    \item \textbf{parser.h/c} : Contient des fonctions liées à l'analyse des commandes et à la construction de la structure des données de commande.
+    %Contains functions related to parsing commands and constructing the command data structure.
+    \item \textbf{utils.h/c} : Contient des fonctions utilitaires et d'aide qui sont principalement liées à la lecture de l'entrée de l'utilisateur. \texttt{read\_input} est la fonction principale utilisée pour lire l'entrée. \texttt{my\_readline} est juste un adaptateur de \texttt{read\_input} pour unifier l'API appelante avec \texttt{libreadline} afin que le même code puisse être utilisé plusieurs fois sans avoir besoin de maintenir deux versions différentes du code en deux différents endroits et qui se chargent de la même fonction.
+    
+    %Contains utility and helper functions that are mainly related to taking input. \texttt{read\_input} is the core function used to read input. \texttt{my\_readline} is just an adapter of \texttt{read\_input} to unify the calling API with \texttt{libreadline} so the same code can be used without the need of maintaining two different versions of the code in two different places that essentialy do the same thing.
+    \item \textbf{bg.c/h} : Contient tous les fonctions liées aux processus en arrière-plan
+    % Contains all functions related to background process.
+    \item \textbf{tesh.c/h} : Où se trouvent toutes les fonctionnalités de base.
+    %Where all the core functionalities live.
+    \item \textbf{main.c} : Entré du programme où le shell est initialisé et lancé.
+    % Main entry of the program where the shell struct is initialized run
+\end{itemize}
+
+\newpage
+
+\section{Difficultés rencontrés} 
+% pipe, &&, || et tt ça pour le parsing 
+% priorité des opérations
+\subsection{Parsing}
+La première étape fondamentale dans notre stratégie était l'étape de \textit{Parsing} puisque tous les autres fonctionnalités en dépendent. En effet, nous avons rencontré quelques difficultés au cours de l'implémentation de cette partie. Nous avons dû changer le tout premier modèle implémenté pour faire le parsing et qui était basé sur des listes chainées. Se rendant compte que cette structure posera beaucoup de problèmes après pour implémenter les fonctionnalités demandées, nous avons choisi d'adopter à la place une structure de liste simple (comme détaillé dans la partie précédente) afin de faciliter la manipulation. La difficulté principale était alors de mettre en place un \textit{Parser} qui prends en compte la spécificité de chaque fonctionnalité, par exemple le cas de \texttt{ "; , <, >{}> "}, et la priorité entre les fonctions et les opérateurs. Principalement, le problème se posait avec \texttt{file < cmd} puisque il faut tenir en compte que la première partie de la commande doit être reconnue comme un fichier et ne doit pas être exécutée par le programme.
+
+\subsection{Les Pipes}
+Notre algorithme initial de gestion des pipes consiste en la mise en place de deux pipes existants en permanence et s'échangeant entre eux au fur et à mesure que nous exécutons les commandes. Cela a parfaitement fonctionné pour la plupart des cas. Mais quand nous l'avons testé avec des gros fichiers, cela a dépassé la limite par défaut du pipe mais nous n'avons pas voulu juste augmenter la limite de taille du pipe car nous avons estimé que ce n'est pas la bonne façon à faire.
+
+% Our initial algorithm for handling pipes consists of two pipes existing in permanence swapping between them as we execute the commands. This worked perfectly for the most part till we tested it with big files as we wait after the execution of each sub command.  This exceedess the default limit of set by the default for the pipe and we wouldn't just increase the pipe size limit as this sounded more like a hack rather than a permanent solution. 
+
+De plus, cette version n'a pas réussi les tests blancs lancés par le professeur; en particulier les tests de fuite de descripteur de fichier, car pour chaque pipe, un  seul pipe devrait exister dans la commande alors que nous en avions deux, même lorsqu'un seul pipe est demandé. Nous avonsa alors modifié l'algorithme pour utiliser un seul pipe et éliminer l'attente immédiate après l'exécution du premier processus, au lieu de cela, nous attendrions la dernière commande (qui n'est pas suivi d'un pipe) pour terminer l'exécution.Cette approche a passé tous les tests.
+
+%Additionally, this version failed to pass the file descriptor leak tests as one pipe should exist per pipe in the command while we had two even when only one pipe is used. We tweaked the algorithm to use one pipe and eliminated the immediate wait after the execution of the first process instead we would wait for the last command that have no pipe after to finish execution. 
+
+Nous avons également pensé à une autre approche dans laquelle nous aurions un tableau de pipe initialisés au fur et à mesure que nous progressons dans la commande. Cette approche nous a paru plus correcte alors nous avons décidé de l'adopter, après l'avoir testée localement sur un ensemble de tests qui simulent les vrais tests blancs du professeur. Lorsque les résultats des tests blancs\footnote{Les tests de 02/12/2021} sont sortis, nous n'avons pas compris pourquoi nous n'avions pas réussi le test pipe2, même si nous avions réussi un test similaire en locale.
+
+%This approach passed all tests. We thought also about another approach where we'd have an array of pipes that are initialized as we progress through the command. This approach seemed more correct to us so we decided to adopt it after testing it locally on a set of tests that simulate the real white tests. When the results of the white tests\footnote{Tests of the 02/12/2021} came out we were confused why we didn't pass the test pipe2 even we have passed a similar test in the local simulation tests.
+
+Nous avons essayé de localiser le problème, mais nous n'avons toujours pas réussi le prochain test pipe2. A ce stade, sachant que nous n'avons plus qu'un seul test blanc à passer, nous avons décidé de revenir à l'ancienne approche fonctionnelle mais sans supprimer la nouvelle approche. Nous avons conservé les deux implémentations en profitant des directives du pré-processeur C\footnote{Notamment les \texttt{\#define}}.
+%We tried to track down the issue but we still didn't pass the next pipe2 test either. At this point, knowing that we only have one more test to go we decided to revert back to the old working approach but without deleting the new approach. We kept both implementations taking advantage of C preprocessor directives. 
+La nouvelle approche peut-être activée ou désactivée en définissant (ou non) la macro \texttt{NEW\_APPROACH} lors de la compilation ou en commentant/décommentant la ligne \textit{}{12} dans \texttt{tesh.c}.
+%The new approach can be enabled or disabled by defining (or not) the macro \texttt{NEW\_APPROACH} during compilation or by commenting/de-commenting line \textit{}{12} in \texttt{tesh.c}
+
+\subsection{Processus en arrière-plan}
+Au début du projet, Nous avons mal compris la partie des processus en arrière-plan. Nous avonc compris qu'il faut qu'on enlève les processus \footnote{Dans le sens où ils sont plus accessibles en faisant \texttt{fg PID}} dés qu'ils terminent leurs exécutions. Les tests sur l'exécution arrière-plan ont énormément clarifié la façon avec laquelle le système est sensé fonctionner pour être correcte. Le bug a donc été rapidement corrigé.
+
+
+% We had a small misunderstanding regarding background process. We thought that background process should be removed\footnote{In a sense that they are no longer accessible by \texttt{fg PID}} as soon as they terminate execution. The tests about the background process cleared that missunderstanding away. The bug was therefor quickly patched.
+
+
+\section*{Bilan global du projet d'équipe} 
+    \addcontentsline{toc}{section}{Bilan global du projet d'équipe}
+
+    \subsubsection*{Le point sur l'équipe}
+    \begin{table}[!ht]
+            \begin{center}
+                \begin{tabular}{|l|c|c|c|}
+                    \hline
+                    Etapes & O. CHIDA & C. TOUNSI OMEZZINE \\
+                    \hline
+                    Documentation & 1h & 1.5h \\
+                    \hline
+                    Conception & 3h  & 3h \\
+                    \hline
+                    Implémentation & 20h & 19h \\ 
+                    \hline 
+                    Tests & 2h & 3h \\ 
+                    \hline
+                    Code Review & 3h & 2h \\
+                    \hline
+                    Rédaction du rapport & 2h  & 3h \\
+                    \hline
+                    \hline
+                    TOTAL & 31h & 31.5h \\ 
+                    \hline
+                \end{tabular}
+            \end{center}
+            \caption{Le temps moyen consacré au projet par chaque membre}
+            \label{tab:times}
+        \end{table}
+
+\end{document}
